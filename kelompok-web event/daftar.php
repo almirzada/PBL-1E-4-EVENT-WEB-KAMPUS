@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulir Pendaftaran Lomba</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    :root {
+      --primary: #004aad;
+      --secondary: #e63946;
+      --success: #28a745;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --light: #f8f9fa;
+      --dark: #343a40;
+      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      --hover-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
+    }
+
+    body {
+      background-color: #f5f7fa;
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .header {
+      width: 100%;
+      background-color: white;
+      padding: 15px 0;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 30px;
+      border-radius: 12px;
+      position: sticky;
+      top: 10px;
+      z-index: 100;
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+
+    .logo img {
+      height: 60px;
+      width: auto;
+      transition: transform 0.3s ease;
+    }
+
+    .logo:hover img {
+      transform: scale(1.05);
+    }
+
+    nav {
+      display: flex;
+      gap: 25px;
+    }
+
+    nav a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 18px;
+      transition: all 0.3s ease;
+      padding: 8px 15px;
+      border-radius: 8px;
+      position: relative;
+    }
+
+    nav a:hover {
+      background-color: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    nav a.active {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 12px rgba(0, 74, 173, 0.3);
+    }
+
+    .container {
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      padding: 40px;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 30px;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .container:hover {
+      box-shadow: var(--hover-shadow);
+    }
+
+    h2 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 30px;
+      font-size: 2.2rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
+    h2:after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100px;
+      height: 4px;
+      background: linear-gradient(to right, var(--primary), var(--secondary));
+      border-radius: 2px;
+    }
+
+    .form-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .form-header p {
+      color: #666;
+      font-size: 1.1rem;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      flex: 1;
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #444;
+      font-size: 1.1rem;
+    }
+
+    .input-with-icon {
+      position: relative;
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #777;
+    }
+
+    .input-with-icon input,
+    .input-with-icon select {
+      padding-left: 45px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 14px;
+      border: 2px solid #e1e5eb;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background-color: #f9f9f9;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--primary);
+      outline: none;
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.1);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      border-radius: 40px;
+    }
+
+    button {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 30px;
+    }
+
+    button[type="submit"] {
+      background: linear-gradient(135deg, var(--primary), #0066cc);
+      color: white;
+      border-radius: 30px;
+    }
+
+    button[type="submit"]:hover {
+      background: linear-gradient(135deg, #0066cc, var(--primary));
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(0, 74, 173, 0.4);
+    }
+
+    .back-button {
+      background-color: #6c757d;
+      color: white;
+    }
+
+    .back-button:hover {
+      background-color: #5a6268;
+      transform: translateY(-3px);
+      box-shadow: 0 7px 20px rgba(108, 117, 125, 0.4);
+    }
+
+    .lomba-section {
+      margin-top: 20px;
+      padding: 25px;
+      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+      border-radius: 12px;
+      border-left: 5px solid var(--primary);
+      margin-bottom: 25px;
+    }
+
+    .lomba-section h3 {
+      color: var(--primary);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lomba-cards {
+      display: flex;
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .lomba-card {
+      flex: 1;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .lomba-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .lomba-card.active {
+      border-color: var(--primary);
+      background: linear-gradient(135deg, #f0f7ff, #e1eeff);
+    }
+
+    .lomba-icon {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      color: var(--primary);
+    }
+
+    .lomba-card h4 {
+      color: var(--primary);
+      margin-bottom: 5px;
+    }
+
+    .lomba-card p {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .anggota-section {
+      margin-top: 20px;
+      padding: 25px;
+      background-color: white;
+      border-radius: 12px;
+      border: 2px solid #e1e5eb;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .anggota-section h3 {
+      color: var(--primary);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .add-anggota {
+      background: linear-gradient(135deg, var(--success), #20c997);
+      color: white;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-top: 10px;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .add-anggota:hover {
+      background: linear-gradient(135deg, #20c997, var(--success));
+      transform: translateY(-3px);
+      box-shadow: 0 7px 15px rgba(40, 167, 69, 0.3);
+    }
+
+    .anggota-item {
+      background: linear-gradient(135deg, #f8f9fa, #ffffff);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 2px solid #e9ecef;
+      position: relative;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+    }
+
+    .anggota-item:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .anggota-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f1f3f4;
+    }
+
+    .anggota-title {
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .remove-anggota {
+      background: linear-gradient(135deg, var(--danger), #e52d27);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 15px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .remove-anggota:hover {
+      background: linear-gradient(135deg, #e52d27, var(--danger));
+      transform: scale(1.05);
+    }
+
+    .anggota-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .anggota-fields .form-group {
+      margin-bottom: 0;
+    }
+
+    .counter-info {
+      text-align: center;
+      margin: 15px 0;
+      color: #666;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 8px;
+    }
+
+    .max-warning {
+      color: var(--danger);
+      font-weight: 600;
+    }
+
+    .lomba-info {
+      background: linear-gradient(135deg, #e7f3ff, #d4e7ff);
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border-left: 5px solid var(--primary);
+      display: none;
+    }
+
+    .lomba-info h4 {
+      color: var(--primary);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lomba-info p {
+      color: #555;
+      margin-bottom: 5px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      padding: 20px;
+      color: #666;
+      width: 100%;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .container {
+      animation: fadeIn 0.8s ease forwards;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .anggota-item {
+      animation: slideIn 0.3s ease forwards;
+    }
+
+    /* Responsif untuk HP */
+    @media (max-width: 768px) {
+      .navbar {
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      nav {
+        gap: 10px;
+      }
+
+      nav a {
+        font-size: 16px;
+        padding: 6px 12px;
+      }
+
+      .container {
+        padding: 25px;
+        margin: 10px;
+      }
+
+      h2 {
+        font-size: 1.8rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .anggota-fields {
+        grid-template-columns: 1fr;
+      }
+
+      .anggota-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .form-row {
+        flex-direction: column;
+        gap: 0;
+      }
+
+      .lomba-cards {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <div class="navbar">
+      <div class="logo">
+        <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" alt="Logo Polibatam" />
+      </div>
+
+    </div>
+  </div>
+
+  <div class="container">
+    <h2><i class="fas fa-trophy"></i> Formulir Pendaftaran</h2>
+    <div class="form-header">
+      <p>Daftarkan tim Anda untuk mengikuti Lomba Antar Jurusan Politeknik Negeri Batam</p>
+    </div>
+
+    <form id="formPendaftaran">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nim"><i class="fas fa-id-card"></i> NIM:</label>
+          <div class="input-with-icon">
+            <i class="fas fa-id-card"></i>
+            <input type="text" id="nim" required placeholder="Masukkan NIM Anda">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="nama"><i class="fas fa-user"></i> Nama Lengkap:</label>
+          <div class="input-with-icon">
+            <i class="fas fa-user"></i>
+            <input type="text" id="nama" required placeholder="Masukkan nama lengkap Anda">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="prodi"><i class="fas fa-graduation-cap"></i> Program Studi:</label>
+          <div class="input-with-icon">
+            <i class="fas fa-graduation-cap"></i>
+            <input type="text" id="prodi" required placeholder="Masukkan program studi Anda">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="wa"><i class="fas fa-phone"></i> Nomor WA Aktif:</label>
+          <div class="input-with-icon">
+            <i class="fas fa-phone"></i>
+            <input type="tel" id="wa" required placeholder="Contoh: 081234567890">
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="ketua"><i class="fas fa-crown"></i> Nama Ketua/Kapten Tim:</label>
+        <div class="input-with-icon">
+          <i class="fas fa-crown"></i>
+          <input type="text" id="ketua" required placeholder="Masukkan nama ketua/kapten tim">
+        </div>
+      </div>
+
+      <div class="lomba-section">
+        <h3><i class="fas fa-running"></i> Pilih Jenis Lomba</h3>
+        <div class="lomba-cards">
+          <div class="lomba-card" data-lomba="Futsal">
+            <div class="lomba-icon">
+              <i class="fas fa-futbol"></i>
+            </div>
+            <h4>Futsal</h4>
+            <p>Maks. 10 Pemain</p>
+          </div>
+          <div class="lomba-card" data-lomba="Basket">
+            <div class="lomba-icon">
+              <i class="fas fa-basketball-ball"></i>
+            </div>
+            <h4>Basket</h4>
+            <p>Maks. 12 Pemain</p>
+          </div>
+          <div class="lomba-card" data-lomba="Badminton">
+            <div class="lomba-icon">
+              <i class="fas fa-table-tennis"></i>
+            </div>
+            <h4>Badminton</h4>
+            <p>Maks. 2 Pemain</p>
+          </div>
+        </div>
+        <input type="hidden" id="lomba" required>
+      </div>
+
+      <div class="lomba-info" id="lombaInfo">
+        <h4><i class="fas fa-info-circle"></i> Informasi Lomba</h4>
+        <p id="infoText">Pilih jenis lomba untuk melihat informasi detail</p>
+      </div>
+
+      <div class="anggota-section">
+        <h3><i class="fas fa-users"></i> Anggota Tim</h3>
+        <div class="counter-info">
+          <i class="fas fa-user-friends"></i> Jumlah anggota: <span id="anggotaCount">0</span>
+          <span id="maxAnggotaText">/10</span>
+        </div>
+        <div id="anggotaContainer">
+          <!-- Anggota tim akan ditambahkan di sini -->
+        </div>
+        <button type="button" class="add-anggota" id="tambahAnggota">
+          <i class="fas fa-plus"></i> Tambah Anggota
+        </button>
+      </div>
+
+      <div class="button-group">
+        <button type="submit"><i class="fas fa-paper-plane"></i> Daftar Sekarang</button>
+        <button type="button" class="back-button" onclick="history.back()">
+          <i class="fas fa-arrow-left"></i> Kembali
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <footer>
+    <p>© 2025 Politeknik Negeri Batam - Turnamen Olahraga Antar Jurusan</p>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const anggotaContainer = document.getElementById('anggotaContainer');
+      const tambahAnggotaBtn = document.getElementById('tambahAnggota');
+      const anggotaCountSpan = document.getElementById('anggotaCount');
+      const maxAnggotaText = document.getElementById('maxAnggotaText');
+      const lombaCards = document.querySelectorAll('.lomba-card');
+      const lombaInput = document.getElementById('lomba');
+      const lombaInfo = document.getElementById('lombaInfo');
+      const infoText = document.getElementById('infoText');
+
+      let anggotaCount = 0;
+      let maxAnggota = 10;
+      let currentLomba = '';
+
+      // Informasi untuk setiap lomba
+      const lombaDetails = {
+        'Futsal': {
+          maxAnggota: 10,
+          info: 'Futsal: Maksimal 10 pemain (7 pemain utama + 3 cadangan). Durasi pertandingan 2x20 menit.',
+          icon: 'futbol',
+          color: '#004aad'
+        },
+        'Basket': {
+          maxAnggota: 12,
+          info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan). Durasi pertandingan 4x10 menit.',
+          icon: 'basketball-ball',
+          color: '#e63946'
+        },
+        'Badminton': {
+          maxAnggota: 2,
+          info: 'Badminton Ganda: Maksimal 2 pemain per tim. Sistem gugur dengan best of three sets.',
+          icon: 'TableTennisPaddleBall',
+          color: '#28a745'
+        }
+      };
+
+      // Event listener untuk kartu lomba
+      lombaCards.forEach(card => {
+        card.addEventListener('click', function () {
+          const selectedLomba = this.getAttribute('data-lomba');
+
+          // Hapus kelas active dari semua kartu
+          lombaCards.forEach(c => c.classList.remove('active'));
+
+          // Tambah kelas active ke kartu yang dipilih
+          this.classList.add('active');
+
+          // Set nilai input hidden
+          lombaInput.value = selectedLomba;
+          currentLomba = selectedLomba;
+
+          // Tampilkan informasi lomba
+          if (currentLomba && lombaDetails[currentLomba]) {
+            maxAnggota = lombaDetails[currentLomba].maxAnggota;
+            infoText.textContent = lombaDetails[currentLomba].info;
+            maxAnggotaText.textContent = `/${maxAnggota}`;
+            lombaInfo.style.display = 'block';
+
+            // Reset anggota jika melebihi batas baru
+            if (anggotaCount > maxAnggota) {
+              const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
+              for (let i = maxAnggota; i < anggotaItems.length; i++) {
+                anggotaItems[i].remove();
+              }
+              anggotaCount = maxAnggota;
+              updateCounter();
+              updateAnggotaNumbers();
+            }
+
+            updateTambahButton();
+          }
+        });
+      });
+
+      // Fungsi untuk menambah anggota
+      function tambahAnggota() {
+        if (!currentLomba) {
+          alert('Pilih jenis lomba terlebih dahulu!');
+          return;
+        }
+
+        if (anggotaCount >= maxAnggota) {
+          alert(`Maksimal ${maxAnggota} anggota untuk lomba ${currentLomba}!`);
+          return;
+        }
+
+        anggotaCount++;
+        updateCounter();
+
+        const anggotaItem = document.createElement('div');
+        anggotaItem.className = 'anggota-item';
+        anggotaItem.innerHTML = `
+          <div class="anggota-header">
+            <span class="anggota-title"><i class="fas fa-user"></i> Anggota ${anggotaCount}</span>
+            ${anggotaCount > 1 ? '<button type="button" class="remove-anggota"><i class="fas fa-times"></i> Hapus</button>' : ''}
+          </div>
+          <div class="anggota-fields">
+            <div class="form-group">
+              <label for="anggota_nama_${anggotaCount}">Nama Lengkap</label>
+              <input type="text" id="anggota_nama_${anggotaCount}" name="anggota_nama[]" required placeholder="Nama lengkap anggota">
+            </div>
+            <div class="form-group">
+              <label for="anggota_nim_${anggotaCount}">NIM</label>
+              <input type="number" id="anggota_nim_${anggotaCount}" name="anggota_nim[]" required placeholder="NIM anggota">
+            </div>
+            <div class="form-group">
+              <label for="anggota_prodi_${anggotaCount}">Program Studi</label>
+              <input type="text" id="anggota_prodi_${anggotaCount}" name="anggota_prodi[]" required placeholder="Program studi anggota">
+            </div>
+            <div class="form-group">
+              <label for="anggota_posisi_${anggotaCount}">Posisi</label>
+              <select id="anggota_posisi_${anggotaCount}" name="anggota_posisi[]" required>
+                <option value="">-- Pilih Posisi --</option>
+                ${getPosisiOptions(currentLomba)}
+              </select>
+            </div>
+          </div>
+        `;
+
+        anggotaContainer.appendChild(anggotaItem);
+
+        // Tambah event listener untuk tombol hapus
+        const removeBtn = anggotaItem.querySelector('.remove-anggota');
+        if (removeBtn) {
+          removeBtn.addEventListener('click', function () {
+            hapusAnggota(anggotaItem);
+          });
+        }
+
+        updateTambahButton();
+      }
+
+      // Fungsi untuk mendapatkan opsi posisi berdasarkan lomba
+      function getPosisiOptions(lomba) {
+        switch (lomba) {
+          case 'Futsal':
+            return `
+              <option value="Kiper">Kiper</option>
+              <option value="Bek">Bek</option>
+              <option value="Gelandang">Gelandang</option>
+              <option value="Penyerang">Penyerang</option>
+              <option value="Cadangan">Cadangan</option>
+            `;
+          case 'Basket':
+            return `
+              <option value="Point Guard">Point Guard</option>
+              <option value="Shooting Guard">Shooting Guard</option>
+              <option value="Small Forward">Small Forward</option>
+              <option value="Power Forward">Power Forward</option>
+              <option value="Center">Center</option>
+              <option value="Cadangan">Cadangan</option>
+            `;
+          case 'Badminton':
+            return `
+              <option value="Pemain 1">Pemain 1</option>
+              <option value="Pemain 2">Pemain 2</option>
+            `;
+          default:
+            return `
+              <option value="Pemain">Pemain</option>
+              <option value="Cadangan">Cadangan</option>
+            `;
+        }
+      }
+
+      // Fungsi untuk menghapus anggota
+      function hapusAnggota(anggotaItem) {
+        anggotaItem.remove();
+        anggotaCount--;
+        updateCounter();
+        updateAnggotaNumbers();
+        updateTambahButton();
+      }
+
+      // Fungsi untuk memperbarui nomor anggota
+      function updateAnggotaNumbers() {
+        const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
+        anggotaItems.forEach((item, index) => {
+          const title = item.querySelector('.anggota-title');
+          title.innerHTML = `<i class="fas fa-user"></i> Anggota ${index + 1}`;
+
+          // Update input IDs dan names
+          const inputs = item.querySelectorAll('input, select');
+          inputs.forEach(input => {
+            const baseName = input.name.replace(/\[\]$/, '');
+            input.name = `${baseName}[]`;
+            input.id = `${baseName}_${index + 1}`;
+          });
+        });
+      }
+
+      // Fungsi untuk memperbarui counter
+      function updateCounter() {
+        anggotaCountSpan.textContent = anggotaCount;
+        if (anggotaCount >= maxAnggota) {
+          anggotaCountSpan.classList.add('max-warning');
+        } else {
+          anggotaCountSpan.classList.remove('max-warning');
+        }
+      }
+
+      // Fungsi untuk update status tombol tambah
+      function updateTambahButton() {
+        if (anggotaCount >= maxAnggota) {
+          tambahAnggotaBtn.disabled = true;
+          tambahAnggotaBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+          tambahAnggotaBtn.innerHTML = '<i class="fas fa-ban"></i> Maksimal Anggota';
+        } else {
+          tambahAnggotaBtn.disabled = false;
+          tambahAnggotaBtn.style.background = '';
+          tambahAnggotaBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah Anggota';
+        }
+      }
+
+      // Event listener untuk tombol tambah anggota
+      tambahAnggotaBtn.addEventListener('click', tambahAnggota);
+
+      // Event listener untuk form submission
+      document.getElementById('formPendaftaran').addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        // Validasi pilihan lomba
+        if (!currentLomba) {
+          alert('Harap pilih jenis lomba!');
+          return;
+        }
+
+        // Validasi minimal anggota
+        const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
+        if (anggotaCount < minAnggota) {
+          alert(`Harap tambahkan minimal ${minAnggota} anggota tim untuk lomba ${currentLomba}!`);
+          return;
+        }
+
+        // Kumpulkan data form
+        const formData = {
+          nim: document.getElementById('nim').value,
+          nama: document.getElementById('nama').value,
+          prodi: document.getElementById('prodi').value,
+          wa: document.getElementById('wa').value,
+          lomba: currentLomba,
+          ketua: document.getElementById('ketua').value,
+          anggota: []
+        };
+
+        // Kumpulkan data anggota
+        const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
+        anggotaItems.forEach(item => {
+          const nama = item.querySelector('input[name="anggota_nama[]"]').value;
+          const nim = item.querySelector('input[name="anggota_nim[]"]').value;
+          const prodi = item.querySelector('input[name="anggota_prodi[]"]').value;
+          const posisi = item.querySelector('select[name="anggota_posisi[]"]').value;
+
+          formData.anggota.push({
+            nama: nama,
+            nim: nim,
+            prodi: prodi,
+            posisi: posisi
+          });
+        });
+
+        // Tampilkan data di console (bisa diganti dengan AJAX request)
+        console.log('Data Pendaftaran:', formData);
+
+        // Simulasi pengiriman data berhasil
+        alert(`Pendaftaran untuk lomba ${currentLomba} berhasil! Data tim telah disimpan.`);
+
+        // Reset form
+        this.reset();
+        anggotaContainer.innerHTML = '';
+        anggotaCount = 0;
+        updateCounter();
+        updateTambahButton();
+        lombaInfo.style.display = 'none';
+        currentLomba = '';
+        maxAnggota = 10;
+        maxAnggotaText.textContent = '/10';
+        lombaCards.forEach(card => card.classList.remove('active'));
+      });
+    });
+  </script>
+</body>
+
+</html>
