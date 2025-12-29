@@ -26,7 +26,7 @@
             color: var(--text-color);
             background: linear-gradient(to bottom,
                     #f0f1f3ff 80%,
-                    #ffffff 100%); kiomjkndindi
+                    #ffffff 100%);
         }
 
         /* Header & Navbar */
