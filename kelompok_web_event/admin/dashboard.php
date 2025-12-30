@@ -726,10 +726,13 @@ $result_rejected = $conn->query($sql_rejected);
                                 <td><?php echo $row['jumlah_anggota']; ?> orang</td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
                                 <td>
-                                    <div class="action-btns">
-                                        <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                            👁️ Detail
-                                        </button>
+                                 <!-- Di kolom aksi tabel -->
+                                <td>
+                                    <a href="detail_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-view">
+                                        👁️ Detail
+                                    </a>
+                                    <!-- tombol lainnya -->
+                                </td>
                                         <a href="verifikasi.php?action=restore&id=<?php echo $row['id_tim']; ?>" 
                                            class="btn-restore"
                                            onclick="return confirm('Kembalikan tim <?php echo htmlspecialchars($row['nama_tim']); ?> ke pending?')">
