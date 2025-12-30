@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
-
+ 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +19,7 @@
             --gray-light: #f5f7fa;
             --gray-medium: #6c757d;
         }
-
+ 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             color: var(--text-color);
@@ -27,18 +27,18 @@
                     #f0f1f3ff 80%,
                     #ffffff 100%);
         }
-
-
+ 
+ 
         .navbar {
             background-color: var(--primary-color);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
-
+ 
         .navbar-nav .nav-link {
             position: relative;
             padding-bottom: 6px;
         }
-
+ 
         .navbar-nav .nav-link::after {
             content: "";
             position: absolute;
@@ -50,17 +50,17 @@
             transition: all 0.3s ease;
             transform: translateX(-50%);
         }
-
+ 
         .navbar-nav .nav-link:hover::after,
         .navbar-nav .nav-link.active::after {
             width: 100%;
         }
-
-
+ 
+ 
         .navbar-brand img {
             height: 50px;
         }
-
+ 
         /* Hero Section Informasi Kampus */
         .hero-section {
             background:
@@ -78,14 +78,14 @@
             display: flex;
             align-items: center;
         }
-
+ 
         .hero-content {
             position: relative;
             z-index: 2;
             max-width: 800px;
             margin: 0 auto;
         }
-
+ 
         .hero-title {
             font-weight: 800;
             margin-bottom: 25px;
@@ -93,7 +93,7 @@
             font-size: 3.5rem;
             line-height: 1.1;
         }
-
+ 
         .hero-subtitle {
             font-size: 1.4rem;
             margin-bottom: 35px;
@@ -101,7 +101,7 @@
             text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
             line-height: 1.6;
         }
-
+ 
         .hero-section h1 {
             font-size: 64px;
             /* sebelumnya 48px */
@@ -109,7 +109,7 @@
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
             text-align: center;
         }
-
+ 
         .hero-section p {
             font-size: 28px;
             /* sebelumnya 24px */
@@ -118,8 +118,8 @@
             text-align: center;
             font-weight: 200px;
         }
-
-
+ 
+ 
         .btn-hero {
             background-color: var(--primary-color);
             color: #f7fafcff;
@@ -134,7 +134,7 @@
             overflow: hidden;
             text-decoration: none;
         }
-
+ 
         .btn-hero::before {
             content: '';
             position: absolute;
@@ -146,24 +146,24 @@
             transition: left 0.7s;
             z-index: -1;
         }
-
+ 
         .btn-hero:hover {
             background-color: #0093f5ff;
             transform: translateY(-5px) scale(1.05);
             box-shadow: 0 12px 25px rgba(0, 0, 0, 0.35);
         }
-
+ 
         .btn-hero:hover::before {
             left: 100%;
         }
-
+ 
         .section-title {
             position: relative;
             margin-bottom: 30px;
             padding-bottom: 15px;
             text-align: center;
         }
-
+ 
         .section-title:after {
             content: '';
             position: absolute;
@@ -174,7 +174,7 @@
             height: 3px;
             background-color: var(--accent-color);
         }
-
+ 
         .news-card {
             border-radius: 10px;
             overflow: hidden;
@@ -183,33 +183,33 @@
             margin-bottom: 30px;
             height: 100%;
         }
-
+ 
         .news-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
         }
-
+ 
         .news-card img {
             height: 200px;
             object-fit: cover;
             width: 100%;
         }
-
+ 
         .card-body {
             padding: 20px;
         }
-
+ 
         .news-date {
             color: #6c757d;
             font-size: 0.9rem;
         }
-
+ 
         .news-title {
             font-weight: 600;
             margin: 10px 0;
             color: var(--primary-color);
         }
-
+ 
         .read-more {
             color: var(--primary-color);
             font-weight: 500;
@@ -217,35 +217,35 @@
             display: inline-flex;
             align-items: center;
         }
-
+ 
         .read-more:hover {
             color: #003d82;
         }
-
+ 
         .read-more i {
             margin-left: 5px;
             transition: transform 0.3s;
         }
-
+ 
         .read-more:hover i {
             transform: translateX(5px);
         }
-
+ 
         .slider-container {
             overflow: hidden;
             position: relative;
             padding: 20px 0;
         }
-
+ 
         .slider-track {
             display: flex;
             animation: scroll 30s linear infinite;
         }
-
+ 
         .slider-track:hover {
             animation-play-state: paused;
         }
-
+ 
         .slider-item {
             flex: 0 0 300px;
             margin: 0 15px;
@@ -253,88 +253,88 @@
             overflow: hidden;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
-
+ 
         .slider-item img {
             width: 100%;
             height: 200px;
             object-fit: cover;
         }
-
+ 
         @keyframes scroll {
             0% {
                 transform: translateX(0);
             }
-
+ 
             100% {
                 transform: translateX(calc(-300px * 6));
             }
         }
-
+ 
         .footer {
             background-color: var(--primary-color);
             color: white;
             padding: 40px 0 20px;
         }
-
+ 
         .footer a {
             color: #ddd;
             text-decoration: none;
         }
-
+ 
         .footer a:hover {
             color: white;
         }
-
+ 
         .social-icons a {
             display: inline-block;
             margin-right: 15px;
             font-size: 1.2rem;
         }
-
+ 
         @media (max-width: 768px) {
             .hero-section {
                 padding: 60px 0;
             }
-
+ 
             .slider-item {
                 flex: 0 0 250px;
             }
-
+ 
             @keyframes scroll {
                 0% {
                     transform: translateX(0);
                 }
-
+ 
                 100% {
                     transform: translateX(calc(-250px * 6));
                 }
             }
         }
-
+ 
         /* Responsive improvements */
         @media (max-width: 992px) {
             .hero-section {
                 padding: 100px 0;
                 min-height: 80vh;
             }
-
+ 
             .hero-title {
                 font-size: 2.8rem;
             }
-
+ 
             .hero-subtitle {
                 font-size: 1.2rem;
             }
-
+ 
             .slider-item {
                 flex: 0 0 300px;
             }
-
+ 
             @keyframes scroll {
                 0% {
                     transform: translateX(0);
                 }
-
+ 
                 100% {
                     transform: translateX(calc(-300px * 6));
                 }
@@ -342,7 +342,7 @@
         }
     </style>
 </head>
-
+ 
 <body>
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -363,13 +363,13 @@
                     <li class="nav-item">
                         <a class="nav-link" href="admin/login.php">Admin</a>
                     </li>
-
+ 
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
-
+ 
     <!-- Hero Section -->
     <section class="hero-section">
         <div class="container">
@@ -378,7 +378,7 @@
             <a href="daftar.php" class="btn-hero mt-3">Daftar Sekarang</a>
         </div>
     </section>
-
+ 
     <!-- Berita Terbaru -->
     <section class="py-5">
         <div class="container">
@@ -399,7 +399,7 @@
                         </div>
                     </div>
                 </div>
-
+ 
                 <!-- Card 2 -->
                 <div class="col-md-4">
                     <div class="news-card">
@@ -415,7 +415,7 @@
                         </div>
                     </div>
                 </div>
-
+ 
                 <!-- Card 3 -->
                 <div class="col-md-4">
                     <div class="news-card">
@@ -434,7 +434,7 @@
             </div>
         </div>
     </section>
-
+ 
     <!-- Slider Berita -->
     <section class="py-5">
         <div class="container">
@@ -487,7 +487,7 @@
             </div>
         </div>
     </section>
-
+ 
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
@@ -503,10 +503,10 @@
                     <h5>Tautan Cepat</h5>
                     <ul class="list-unstyled">
                         <li><a href="#">Beranda</a></li>
-
-
+ 
+ 
                         <li><a href="/daftar">Pendaftaran</a></li>
-
+ 
                     </ul>
                 </div>
                 <div class="col-md-4 mb-4">
@@ -526,8 +526,8 @@
             </div>
         </div>
     </footer>
-
+ 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
+ 
 </html>

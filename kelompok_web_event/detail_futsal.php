@@ -419,13 +419,12 @@
 
 
         <div class="button-group">
-            <button onclick="window.location.href='daftar'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
-            <button onclick="window.location.href='{{ route('home') }}'"
-                class="btn btn-outline-primary rounded-pill px-4">
-                <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
-            </button>
+    <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
+    <button onclick="window.location.href='index.php'">
+        <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
+    </button>
 
-        </div>
+</div>
     </main>
 
     <footer>

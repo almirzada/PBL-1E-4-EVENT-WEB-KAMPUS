@@ -1,126 +1,102 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Formulir Pendaftaran Lomba</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+ <!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
     :root {
-      --primary: #004aad;
+      --primary: #0056b3; /* SAMA DENGAN INDEX.PHP #0056b3 */
       --secondary: #e63946;
       --success: #28a745;
       --danger: #dc3545;
       --warning: #ffc107;
-      --light: #f8f9fa;
+      --light-color: #fff;
+      --gray-light: #f5f7fa;
       --dark: #343a40;
       --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
       --hover-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
     }
 
+    /* HAPUS ONLY NAVBAR CUSTOM STYLE (baris 30-85) */
+    /* TETAPKAN BODY BACKGROUND BIAR SAMA DENGAN INDEX.PHP */
     body {
-      background-color: #f5f7fa;
+      background: linear-gradient(to bottom, #f0f1f3ff 80%, #ffffff 100%);
       color: #333;
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    .header {
-      width: 100%;
-      background-color: white;
-      padding: 15px 0;
-      box-shadow: var(--card-shadow);
-      margin-bottom: 30px;
-      border-radius: 12px;
-      position: sticky;
-      top: 10px;
-      z-index: 100;
-    }
+     .navbar {
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+ 
+        .navbar-nav .nav-link {
+            position: relative;
+            padding-bottom: 6px;
+        }
+ 
+        .navbar-nav .nav-link::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 0;
+            height: 2px;
+            background-color: #ffffffff;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+ 
+        .navbar-nav .nav-link:hover::after,
+        .navbar-nav .nav-link.active::after {
+            width: 100%;
+        }
+ 
+ 
+        .navbar-brand img {
+            height: 50px;
+        }
+ 
 
-    .navbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
+    /* CONTAINER FORM (BUKAN .container BIAR GAK TABRAK BOOTSTRAP) */
+   .form-container {
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: var(--card-shadow);
+  padding: 40px;
+  width: 100%;
+  max-width: 900px;
+  margin: 60px auto 30px auto; /* Tambah margin-top jadi 60px */
+  transition: box-shadow 0.3s ease;
+}
 
-    .logo img {
-      height: 60px;
-      width: auto;
-      transition: transform 0.3s ease;
-    }
-
-    .logo:hover img {
-      transform: scale(1.05);
-    }
-
-    nav {
-      display: flex;
-      gap: 25px;
-    }
-
-    nav a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 18px;
-      transition: all 0.3s ease;
-      padding: 8px 15px;
-      border-radius: 8px;
-      position: relative;
-    }
-
-    nav a:hover {
-      background-color: var(--primary);
-      color: white;
-      transform: translateY(-2px);
-    }
-
-    nav a.active {
-      background-color: var(--primary);
-      color: white;
-      box-shadow: 0 4px 12px rgba(0, 74, 173, 0.3);
-    }
-
-    .container {
-      background-color: white;
-      border-radius: 16px;
-      box-shadow: var(--card-shadow);
-      padding: 40px;
-      width: 100%;
-      max-width: 900px;
-      margin-bottom: 30px;
-      transition: box-shadow 0.3s ease;
-    }
-
-    .container:hover {
+    .form-container:hover {
       box-shadow: var(--hover-shadow);
     }
 
-    h2 {
-      text-align: center;
-      color: var(--primary);
-      margin-bottom: 30px;
-      font-size: 2.2rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      position: relative;
-      padding-bottom: 15px;
-    }
-
+   h2 {
+  text-align: center;
+  color: var(--primary);
+  margin: 50px 0 30px 0; /* Tambahkan margin atas 40px */
+  font-size: 3.4rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  position: relative;
+  padding-bottom: 15px;
+}
     h2:after {
       content: '';
       position: absolute;
@@ -133,9 +109,53 @@
       border-radius: 2px;
     }
 
+    /* LABEL WARNA BIRU */
+.form-group label {
+  color: #1565c0 !important; /* Biru */
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* Icon dalam label juga biru */
+.form-group label i {
+  color: #1565c0;
+  margin-right: 8px;
+}
+
+/* Input field tetap standar */
+.input-with-icon {
+  position: relative;
+  margin-top: 5px;
+}
+
+.input-with-icon i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+.input-with-icon input {
+  width: 100%;
+  padding: 14px 14px 14px 45px;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.input-with-icon input:focus {
+  border-color: #1e88e5;
+  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+  outline: none;
+}
+
     .form-header {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 60px;
     }
 
     .form-header p {
@@ -164,7 +184,7 @@
       margin-bottom: 8px;
       font-weight: 600;
       color: #444;
-      font-size: 1.1rem;
+      font-size: 1.7rem;
     }
 
     .input-with-icon {
@@ -212,7 +232,7 @@
 
     button {
       flex: 1;
-      padding: 15px;
+      padding: 10px;
       border: none;
       border-radius: 10px;
       font-size: 1.1rem;
@@ -230,6 +250,7 @@
       background: linear-gradient(135deg, var(--primary), #0066cc);
       color: white;
       border-radius: 30px;
+      padding: 12px;
     }
 
     button[type="submit"]:hover {
@@ -258,7 +279,7 @@
       margin-bottom: 25px;
     }
 
-    .lomba-section h3 {
+    .lomba-section h4 {
       color: var(--primary);
       margin-bottom: 15px;
       display: flex;
@@ -276,7 +297,7 @@
       flex: 1;
       background: white;
       border-radius: 10px;
-      padding: 20px;
+      padding: 10px;
       text-align: center;
       cursor: pointer;
       transition: all 0.3s ease;
@@ -295,14 +316,14 @@
     }
 
     .lomba-icon {
-      font-size: 2.5rem;
+      font-size: 2.3rem;
       margin-bottom: 10px;
       color: var(--primary);
     }
 
-    .lomba-card h4 {
+    .lomba-card h5 {
       color: var(--primary);
-      margin-bottom: 5px;
+      margin-bottom: 1px;
     }
 
     .lomba-card p {
@@ -319,7 +340,7 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
-    .anggota-section h3 {
+    .anggota-section h4 {
       color: var(--primary);
       margin-bottom: 15px;
       display: flex;
@@ -389,13 +410,13 @@
       color: white;
       border: none;
       border-radius: 8px;
-      padding: 8px 15px;
+      padding: 8px 8px;
       cursor: pointer;
       font-size: 0.9rem;
       transition: all 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 3px;
     }
 
     .remove-anggota:hover {
@@ -475,7 +496,7 @@
       }
     }
 
-    .container {
+    .form-container {
       animation: fadeIn 0.8s ease forwards;
     }
 
@@ -497,21 +518,7 @@
 
     /* Responsif untuk HP */
     @media (max-width: 768px) {
-      .navbar {
-        flex-direction: column;
-        gap: 15px;
-      }
-
-      nav {
-        gap: 10px;
-      }
-
-      nav a {
-        font-size: 16px;
-        padding: 6px 12px;
-      }
-
-      .container {
+      .form-container {
         padding: 25px;
         margin: 10px;
       }
@@ -547,14 +554,31 @@
 </head>
 
 <body>
-  <div class="header">
-    <div class="navbar">
-      <div class="logo">
-        <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" alt="Logo Polibatam" />
-      </div>
-
+ <!-- Navbar Bootstrap Sama dengan Index.php -->
+<nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #0056b3;">
+  <div class="container">
+    <a class="navbar-brand" href="index.php">
+      <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" 
+           height="50" alt="Politeknik Negeri Batam">
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+          <a class="nav-link" href="index.php">Beranda</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link active" href="daftar.php">Pendaftaran</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="admin/login.php">Admin</a>
+        </li>
+      </ul>
     </div>
   </div>
+</nav>
 
   <div class="container">
     <h2><i class="fas fa-trophy"></i> Formulir Pendaftaran</h2>
@@ -608,27 +632,27 @@
       </div>
 
       <div class="lomba-section">
-        <h3><i class="fas fa-running"></i> Pilih Jenis Lomba</h3>
+        <h4><i class="fas fa-running"></i> Pilih Jenis Lomba</h4>
         <div class="lomba-cards">
           <div class="lomba-card" data-lomba="Futsal">
             <div class="lomba-icon">
               <i class="fas fa-futbol"></i>
             </div>
-            <h4>Futsal</h4>
+            <h5>Futsal</h5>
             <p>Maks. 10 Pemain</p>
           </div>
           <div class="lomba-card" data-lomba="Basket">
             <div class="lomba-icon">
               <i class="fas fa-basketball-ball"></i>
             </div>
-            <h4>Basket</h4>
+            <h5>Basket</h5>
             <p>Maks. 12 Pemain</p>
           </div>
           <div class="lomba-card" data-lomba="Badminton">
             <div class="lomba-icon">
               <i class="fas fa-table-tennis"></i>
             </div>
-            <h4>Badminton</h4>
+            <h5>Badminton</h5>
             <p>Maks. 2 Pemain</p>
           </div>
         </div>
@@ -641,7 +665,7 @@
       </div>
 
       <div class="anggota-section">
-        <h3><i class="fas fa-users"></i> Anggota Tim</h3>
+        <h4><i class="fas fa-users"></i> Anggota Tim</h4>
         <div class="counter-info">
           <i class="fas fa-user-friends"></i> Jumlah anggota: <span id="anggotaCount">0</span>
           <span id="maxAnggotaText">/10</span>
@@ -778,9 +802,8 @@
               <input type="text" id="anggota_prodi_${anggotaCount}" name="anggota_prodi[]" required placeholder="Program studi anggota">
             </div>
             <div class="form-group">
-              <label for="anggota_posisi_${anggotaCount}">Posisi</label>
+              <label for="anggota_posisi_${anggotaCount}">Tahun Angkatan</label>
               <select id="anggota_posisi_${anggotaCount}" name="anggota_posisi[]" required>
-                <option value="">-- Pilih Posisi --</option>
                 ${getPosisiOptions(currentLomba)}
               </select>
             </div>
@@ -801,37 +824,17 @@
       }
 
       // Fungsi untuk mendapatkan opsi posisi berdasarkan lomba
-      function getPosisiOptions(lomba) {
-        switch (lomba) {
-          case 'Futsal':
-            return `
-              <option value="Kiper">Kiper</option>
-              <option value="Bek">Bek</option>
-              <option value="Gelandang">Gelandang</option>
-              <option value="Penyerang">Penyerang</option>
-              <option value="Cadangan">Cadangan</option>
-            `;
-          case 'Basket':
-            return `
-              <option value="Point Guard">Point Guard</option>
-              <option value="Shooting Guard">Shooting Guard</option>
-              <option value="Small Forward">Small Forward</option>
-              <option value="Power Forward">Power Forward</option>
-              <option value="Center">Center</option>
-              <option value="Cadangan">Cadangan</option>
-            `;
-          case 'Badminton':
-            return `
-              <option value="Pemain 1">Pemain 1</option>
-              <option value="Pemain 2">Pemain 2</option>
-            `;
-          default:
-            return `
-              <option value="Pemain">Pemain</option>
-              <option value="Cadangan">Cadangan</option>
-            `;
-        }
-      }
+     // Fungsi untuk mendapatkan opsi tahun angkatan
+function getPosisiOptions(lomba) {
+  // KINI MENJADI TAHUN ANGKATAN untuk semua lomba
+  return `
+    <option value="2022">2022</option>
+    <option value="2023">2023</option>
+    <option value="2024">2024</option>
+    <option value="2025">2025</option>
+    <option value="2026">2026</option>
+  `;
+}
 
       // Fungsi untuk menghapus anggota
       function hapusAnggota(anggotaItem) {
@@ -919,13 +922,13 @@
           const nama = item.querySelector('input[name="anggota_nama[]"]').value;
           const nim = item.querySelector('input[name="anggota_nim[]"]').value;
           const prodi = item.querySelector('input[name="anggota_prodi[]"]').value;
-          const posisi = item.querySelector('select[name="anggota_posisi[]"]').value;
+         const tahunAngkatan = item.querySelector('select[name="anggota_tahun[]"]').value;
 
           formData.anggota.push({
             nama: nama,
             nim: nim,
             prodi: prodi,
-            posisi: posisi
+            tahunAngkatan: tahunAngkatan
           });
         });
 
@@ -949,6 +952,8 @@
       });
     });
   </script>
+  <!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
 </html>
