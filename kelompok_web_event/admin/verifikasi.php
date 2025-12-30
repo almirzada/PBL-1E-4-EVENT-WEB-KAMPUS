@@ -1,27 +1,60 @@
 <?php
+// verifikasi.php
 session_start();
-if (!isset($_SESSION['admin_logged_in'])) {
+require_once '../koneksi.php'; // Pastikan path koneksi benar
+
+// Cek login admin
+if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: login.php");
     exit();
 }
 
-// KONEKSI
-$conn = new mysqli("localhost", "root", "", "db_lomba");
-
+// Ambil parameter
 $action = $_GET['action'] ?? '';
 $id_tim = $_GET['id'] ?? 0;
 
-if ($action && $id_tim) {
-    if ($action == 'terima') {
-        $conn->query("UPDATE tim SET status='verified', tanggal_verifikasi=NOW() WHERE id_tim=$id_tim");
-    } elseif ($action == 'tolak') {
-        $conn->query("UPDATE tim SET status='rejected' WHERE id_tim=$id_tim");
-    } elseif ($action == 'restore') {
-        $conn->query("UPDATE tim SET status='pending', tanggal_verifikasi=NULL WHERE id_tim=$id_tim");
-    }
+if (!$id_tim || !in_array($action, ['terima', 'tolak', 'restore'])) {
+    header("Location: dashboard.php");
+    exit();
 }
 
-$conn->close();
-header("Location: dashboard.php"); // LANGSUNG REDIRECT
+// Update status berdasarkan action
+switch ($action) {
+    case 'terima':
+        $status = 'active';
+        $message = 'Tim berhasil diterima!';
+        break;
+    
+    case 'tolak':
+        $status = 'rejected';
+        $message = 'Tim berhasil ditolak!';
+        break;
+    
+    case 'restore':
+        $status = 'pending';
+        $message = 'Tim berhasil dikembalikan ke pending!';
+        break;
+    
+    default:
+        header("Location: dashboard.php");
+        exit();
+}
+
+// Update database
+$sql = "UPDATE tim_lomba SET status = ? WHERE id_tim = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("si", $status, $id_tim);
+
+if ($stmt->execute()) {
+    // Set pesan sukses di session
+    $_SESSION['alert_message'] = $message;
+    $_SESSION['alert_type'] = 'success';
+} else {
+    $_SESSION['alert_message'] = 'Gagal update status: ' . $stmt->error;
+    $_SESSION['alert_type'] = 'error';
+}
+
+// Redirect kembali ke dashboard
+header("Location: dashboard.php");
 exit();
 ?>

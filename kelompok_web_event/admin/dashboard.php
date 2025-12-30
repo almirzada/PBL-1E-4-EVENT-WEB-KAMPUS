@@ -16,36 +16,55 @@ $conn = new mysqli($host, $user, $pass, $dbname);
 if ($conn->connect_error) {
     die("Koneksi gagal: " . $conn->connect_error);
 }
-
-// HITUNG STATISTIK
-$total_pending = $conn->query("SELECT COUNT(*) as total FROM tim WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
-$total_verified = $conn->query("SELECT COUNT(*) as total FROM tim WHERE status='verified'")->fetch_assoc()['total'] ?? 0;
-$total_rejected = $conn->query("SELECT COUNT(*) as total FROM tim WHERE status='rejected'")->fetch_assoc()['total'] ?? 0;
+// ================================================
+// PROSES HAPUS TIM JIKA ADA PARAMETER
+// ================================================
+if (isset($_GET['hapus_tim'])) {
+    $id_hapus = intval($_GET['hapus_tim']);
+    
+    // Hapus anggota terlebih dahulu
+    $delete_anggota = $conn->query("DELETE FROM anggota_tim WHERE id_tim = $id_hapus");
+    
+    // Hapus tim
+    $delete_tim = $conn->query("DELETE FROM tim_lomba WHERE id_tim = $id_hapus");
+    
+    if ($delete_tim) {
+        $_SESSION['alert_message'] = "✅ Tim berhasil dihapus permanen!";
+        $_SESSION['alert_type'] = 'success';
+    } else {
+        $_SESSION['alert_message'] = "❌ Gagal menghapus tim: " . $conn->error;
+        $_SESSION['alert_type'] = 'error';
+    }
+    
+    // Redirect ke dashboard untuk refresh data
+    header("Location: dashboard.php");
+    exit();
+}
+// ================================================
+// HITUNG STATISTIK - PERBAIKAN: tim → tim_lomba
+$total_pending = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
+$total_verified = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='active'")->fetch_assoc()['total'] ?? 0; // GANTI verified → active
+$total_rejected = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='rejected'")->fetch_assoc()['total'] ?? 0;
 $total_tim = $total_pending + $total_verified + $total_rejected;
 
-// AMBIL DATA PER STATUS UNTUK TAB
+// AMBIL DATA PER STATUS UNTUK TAB - PERBAIKAN SEMUA QUERY
 $sql_pending = "SELECT t.*, 
-                (SELECT COUNT(*) FROM anggota a WHERE a.id_tim = t.id_tim) as jumlah_anggota,
-                (SELECT nama FROM anggota a WHERE a.id_tim = t.id_tim AND a.peran='ketua' LIMIT 1) as ketua_nama,
-                (SELECT no_wa FROM anggota a WHERE a.id_tim = t.id_tim AND a.peran='ketua' LIMIT 1) as ketua_wa
-                FROM tim t 
+                (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
+                FROM tim_lomba t 
                 WHERE t.status='pending' 
                 ORDER BY t.tanggal_daftar DESC";
 $result_pending = $conn->query($sql_pending);
 
 $sql_verified = "SELECT t.*, 
-                 (SELECT COUNT(*) FROM anggota a WHERE a.id_tim = t.id_tim) as jumlah_anggota,
-                 (SELECT nama FROM anggota a WHERE a.id_tim = t.id_tim AND a.peran='ketua' LIMIT 1) as ketua_nama,
-                 (SELECT no_wa FROM anggota a WHERE a.id_tim = t.id_tim AND a.peran='ketua' LIMIT 1) as ketua_wa
-                 FROM tim t 
-                 WHERE t.status='verified' 
-                 ORDER BY t.tanggal_verifikasi DESC";
+                 (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
+                 FROM tim_lomba t 
+                 WHERE t.status='active' 
+                 ORDER BY t.tanggal_daftar DESC";
 $result_verified = $conn->query($sql_verified);
 
 $sql_rejected = "SELECT t.*, 
-                 (SELECT COUNT(*) FROM anggota a WHERE a.id_tim = t.id_tim) as jumlah_anggota,
-                 (SELECT nama FROM anggota a WHERE a.id_tim = t.id_tim AND a.peran='ketua' LIMIT 1) as ketua_nama
-                 FROM tim t 
+                 (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
+                 FROM tim_lomba t 
                  WHERE t.status='rejected' 
                  ORDER BY t.tanggal_daftar DESC";
 $result_rejected = $conn->query($sql_rejected);
@@ -405,6 +424,14 @@ $result_rejected = $conn->query($sql_rejected);
             filter: brightness(110%);
         }
 
+        /* STYLE UNTUK TOMBOL RESTORE DAN HAPUS */
+        .aksi-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
         /* FOOTER */
         .dashboard-footer {
             background: #f8f9fa;
@@ -649,11 +676,11 @@ $result_rejected = $conn->query($sql_rejected);
                                 </td>
                                 <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
                                 <td>
-                                    <?php if (!empty($row['ketua_wa'])): ?>
-                                    <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $row['ketua_wa']); ?>" 
+                                    <?php if (!empty($row['no_wa'])): ?>
+                                    <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $row['no_wa']); ?>" 
                                        target="_blank" 
                                        style="color: #25D366; text-decoration: none;">
-                                       📱 <?php echo htmlspecialchars($row['ketua_wa']); ?>
+                                       📱 <?php echo htmlspecialchars($row['no_wa']); ?>
                                     </a>
                                     <?php else: ?>
                                     <span style="color: #999;">-</span>
@@ -661,8 +688,8 @@ $result_rejected = $conn->query($sql_rejected);
                                 </td>
                                 <td><?php echo $row['jumlah_anggota']; ?> orang</td>
                                 <td>
-                                    <?php if ($row['tanggal_verifikasi']): ?>
-                                    <?php echo date('d/m/Y H:i', strtotime($row['tanggal_verifikasi'])); ?>
+                                    <?php if ($row['tanggal_daftar']): ?>
+                                    <?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?>
                                     <?php else: ?>
                                     <span style="color: #999;">-</span>
                                     <?php endif; ?>
@@ -675,11 +702,11 @@ $result_rejected = $conn->query($sql_rejected);
                                         <a href="edit_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-edit">
                                             ✏️ Edit
                                         </a>
-                                        <a href="?hapus_tim=<?php echo $row['id_tim']; ?>" 
-                                           class="btn-delete"
-                                           onclick="return confirm('Hapus tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                            🗑️ Hapus
-                                        </a>
+                                        <a href="javascript:void(0);" 
+   class="btn-delete"
+   onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+    🗑️ Hapus
+</a>
                                     </div>
                                 </td>
                             </tr>
@@ -726,23 +753,20 @@ $result_rejected = $conn->query($sql_rejected);
                                 <td><?php echo $row['jumlah_anggota']; ?> orang</td>
                                 <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
                                 <td>
-                                 <!-- Di kolom aksi tabel -->
-                                <td>
-                                    <a href="detail_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-view">
-                                        👁️ Detail
-                                    </a>
-                                    <!-- tombol lainnya -->
-                                </td>
+                                    <div class="aksi-buttons">
+                                        <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
+                                            👁️ Detail
+                                        </button>
                                         <a href="verifikasi.php?action=restore&id=<?php echo $row['id_tim']; ?>" 
                                            class="btn-restore"
                                            onclick="return confirm('Kembalikan tim <?php echo htmlspecialchars($row['nama_tim']); ?> ke pending?')">
                                             🔄 Restore
                                         </a>
-                                        <a href="?hapus_tim=<?php echo $row['id_tim']; ?>" 
-                                           class="btn-delete"
-                                           onclick="return confirm('Hapus permanen tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                            🗑️ Hapus
-                                        </a>
+                                        <a href="javascript:void(0);" 
+   class="btn-delete"
+   onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+    🗑️ Hapus
+</a>
                                     </div>
                                 </td>
                             </tr>
@@ -754,10 +778,11 @@ $result_rejected = $conn->query($sql_rejected);
                 <div class="no-data">
                     <div class="no-data-icon">❌</div>
                     <h3>Tidak ada tim yang ditolak</h3>
-                    <p>Semua tim diterima atau masih dalam proses.</p>
+                    <p>Semua tim dalam status pending atau aktif.</p>
                 </div>
                 <?php endif; ?>
             </div>
+
         </main>
 
         <!-- MODAL DETAIL TIM -->
@@ -796,6 +821,8 @@ $result_rejected = $conn->query($sql_rejected);
             event.currentTarget.classList.add('active');
         }
 
+        
+
         // FUNGSI MODAL DETAIL
         function showDetail(idTim) {
             fetch('detail_tim.php?id=' + idTim)
@@ -824,11 +851,48 @@ $result_rejected = $conn->query($sql_rejected);
                 closeModal();
             }
         }
+
         // FUNGSI UNTUK TUTUP MODAL EDIT
-function closeModalEdit() {
-    document.getElementById('modalEdit').style.display = 'none';
-    document.getElementById('modalEditBody').innerHTML = '';
-}
+        function closeModalEdit() {
+            document.getElementById('modalEdit').style.display = 'none';
+            document.getElementById('modalEditBody').innerHTML = '';
+        }
+
+                // ================================================
+        // FUNGSI UNTUK HAPUS TIM
+        // ================================================
+        function hapusTim(idTim, namaTim) {
+            if (confirm(`⚠️ HAPUS PERMANEN?\n\nTim: "${namaTim}"\n\nAksi ini tidak dapat dibatalkan!`)) {
+                // Tampilkan loading
+                const btn = event.target;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
+                btn.disabled = true;
+                
+                // Kirim request hapus
+                fetch(`dashboard.php?hapus_tim=${idTim}`)
+                    .then(response => {
+                        if (response.ok) {
+                            // Tampilkan pesan sukses
+                            alert('✅ Tim berhasil dihapus!');
+                            // Reload halaman untuk update data
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            throw new Error('Gagal menghapus');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('❌ Gagal menghapus tim!');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    });
+            }
+        }
+        // ================================================
+
     </script>
 </body>
 </html>

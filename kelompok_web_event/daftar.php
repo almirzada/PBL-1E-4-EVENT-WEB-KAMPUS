@@ -586,21 +586,21 @@
       <p>Daftarkan tim Anda untuk mengikuti Lomba Antar Jurusan Politeknik Negeri Batam</p>
     </div>
 
-    <form id="formPendaftaran">
+    <form id="formPendaftaran" method="POST" action="proses_daftar.php">
       <div class="form-row">
         <div class="form-group">
           <label for="nim"><i class="fas fa-id-card"></i> NIM:</label>
           <div class="input-with-icon">
             <i class="fas fa-id-card"></i>
-            <input type="text" id="nim" required placeholder="Masukkan NIM Anda">
+            <input type="text" id="nim" name="nim" required placeholder="Masukkan NIM Anda">
           </div>
         </div>
 
         <div class="form-group">
-          <label for="nama"><i class="fas fa-user"></i> Nama Lengkap:</label>
+          <label for="nama"><i class="fas fa-user"></i> Nama Ketua:</label>
           <div class="input-with-icon">
             <i class="fas fa-user"></i>
-            <input type="text" id="nama" required placeholder="Masukkan nama lengkap Anda">
+            <input type="text" id="nama" name="nama" required placeholder="Masukkan nama anda">
           </div>
         </div>
       </div>
@@ -610,7 +610,7 @@
           <label for="prodi"><i class="fas fa-graduation-cap"></i> Program Studi:</label>
           <div class="input-with-icon">
             <i class="fas fa-graduation-cap"></i>
-            <input type="text" id="prodi" required placeholder="Masukkan program studi Anda">
+            <input type="text" id="prodi" name="prodi" required placeholder="Masukkan program studi Anda">
           </div>
         </div>
 
@@ -618,16 +618,32 @@
           <label for="wa"><i class="fas fa-phone"></i> Nomor WA Aktif:</label>
           <div class="input-with-icon">
             <i class="fas fa-phone"></i>
-            <input type="tel" id="wa" required placeholder="Contoh: 081234567890">
+            <input type="tel" id="wa" name="wa" required placeholder="Contoh: 081234567890">
           </div>
         </div>
       </div>
 
       <div class="form-group">
-        <label for="ketua"><i class="fas fa-crown"></i> Nama Ketua/Kapten Tim:</label>
+        <label for="ketua"><i class="fas fa-crown"></i> Nama Tim:</label>
         <div class="input-with-icon">
           <i class="fas fa-crown"></i>
-          <input type="text" id="ketua" required placeholder="Masukkan nama ketua/kapten tim">
+          <input type="text" id="ketua" name="ketua" required placeholder="Masukkan Nama tim anda">
+        </div>
+      </div>
+
+      <!-- TAMBAHKAN INPUT UNTUK TAHUN ANGKATAN KETUA -->
+      <div class="form-group">
+        <label for="tahun"><i class="fas fa-calendar-alt"></i> Tahun Angkatan (Ketua):</label>
+        <div class="input-with-icon">
+          <i class="fas fa-calendar-alt"></i>
+          <select id="tahun" name="tahun" required>
+            <option value="">Pilih Tahun</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+          </select>
         </div>
       </div>
 
@@ -656,7 +672,7 @@
             <p>Maks. 2 Pemain</p>
           </div>
         </div>
-        <input type="hidden" id="lomba" required>
+        <input type="hidden" id="lomba" name="jenis_lomba" required>
       </div>
 
       <div class="lomba-info" id="lombaInfo">
@@ -679,10 +695,8 @@
       </div>
 
       <div class="button-group">
-       <form action="proses_pendaftaran.php" method="POST">
-  <!-- input fields -->
-  <button type="submit"><i class="fas fa-paper-plane"></i>Daftar</button>
-</form>
+        <!-- HAPUS FORM YANG SALAH DAN GUNAKAN TOMBOL SUBMIT YANG BENAR -->
+        <button type="submit"><i class="fas fa-paper-plane"></i> Daftar</button>
         <button type="button" class="back-button" onclick="history.back()">
           <i class="fas fa-arrow-left"></i> Kembali
         </button>
@@ -712,13 +726,13 @@
       const lombaDetails = {
         'Futsal': {
           maxAnggota: 10,
-          info: 'Futsal: Maksimal 10 pemain (7 pemain utama + 3 cadangan). Durasi pertandingan 2x20 menit.',
+          info: 'Futsal: Maksimal 10 pemain (5 pemain utama + 5 cadangan) Minimal 7 anggota. Durasi pertandingan 2x20 menit waktu kotor.',
           icon: 'futbol',
           color: '#004aad'
         },
         'Basket': {
           maxAnggota: 12,
-          info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan). Durasi pertandingan 4x10 menit.',
+          info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan) Minimal 7 anggota. Durasi pertandingan 3x10 menit.',
           icon: 'basketball-ball',
           color: '#e63946'
         },
@@ -890,68 +904,150 @@ function getPosisiOptions(lomba) {
       // Event listener untuk tombol tambah anggota
       tambahAnggotaBtn.addEventListener('click', tambahAnggota);
 
-      // Event listener untuk form submission
-      document.getElementById('formPendaftaran').addEventListener('submit', function (e) {
-        e.preventDefault();
-
-        // Validasi pilihan lomba
-        if (!currentLomba) {
-          alert('Harap pilih jenis lomba!');
-          return;
-        }
-
-        // Validasi minimal anggota
-        const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
-        if (anggotaCount < minAnggota) {
-          alert(`Harap tambahkan minimal ${minAnggota} anggota tim untuk lomba ${currentLomba}!`);
-          return;
-        }
-
-        // Kumpulkan data form
-        const formData = {
-          nim: document.getElementById('nim').value,
-          nama: document.getElementById('nama').value,
-          prodi: document.getElementById('prodi').value,
-          wa: document.getElementById('wa').value,
-          lomba: currentLomba,
-          ketua: document.getElementById('ketua').value,
-          anggota: []
-        };
-
-        // Kumpulkan data anggota
-        const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
-        anggotaItems.forEach(item => {
-          const nama = item.querySelector('input[name="anggota_nama[]"]').value;
-          const nim = item.querySelector('input[name="anggota_nim[]"]').value;
-          const prodi = item.querySelector('input[name="anggota_prodi[]"]').value;
-         const tahunAngkatan = item.querySelector('select[name="anggota_tahun[]"]').value;
-
-          formData.anggota.push({
-            nama: nama,
-            nim: nim,
-            prodi: prodi,
-            tahunAngkatan: tahunAngkatan
+      // ================================================
+      // BAGIAN SUBMIT YANG BARU - GANTI DARI SINI KE BAWAH
+      // ================================================
+      
+      // Event listener untuk tombol Daftar
+      const btnDaftar = document.querySelector('#formPendaftaran button[type="submit"]');
+      
+      if (btnDaftar) {
+        btnDaftar.addEventListener('click', function(e) {
+          e.preventDefault();
+          console.log("Tombol Daftar diklik!");
+          
+          // 1. Validasi lomba dipilih
+          if (!currentLomba) {
+            alert('❌ Pilih jenis lomba terlebih dahulu!');
+            return;
+          }
+          
+          // 2. Pastikan input hidden lomba terisi
+          document.getElementById('lomba').value = currentLomba;
+          
+          // 3. Validasi tahun angkatan ketua
+          const tahunKetua = document.getElementById('tahun');
+          if (!tahunKetua || !tahunKetua.value) {
+            alert('❌ Pilih tahun angkatan ketua tim!');
+            tahunKetua?.focus();
+            return;
+          }
+          
+          // 4. Validasi minimal anggota
+          const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
+          if (anggotaCount < minAnggota) {
+            alert(`❌ Untuk lomba ${currentLomba}, minimal ${minAnggota} anggota tim!`);
+            return;
+          }
+          
+          // 5. Validasi semua input required
+          const requiredInputs = document.querySelectorAll('#formPendaftaran input[required], #formPendaftaran select[required]');
+          let semuaValid = true;
+          let firstInvalid = null;
+          
+          requiredInputs.forEach(input => {
+            if (!input.value.trim()) {
+              semuaValid = false;
+              input.style.borderColor = 'red';
+              
+              if (!firstInvalid) {
+                firstInvalid = input;
+              }
+            }
           });
+          
+          if (!semuaValid) {
+            alert('❌ Harap isi semua data yang diperlukan!');
+            if (firstInvalid) {
+              firstInvalid.focus();
+            }
+            return;
+          }
+          
+          // 6. Tampilkan loading
+          const originalText = btnDaftar.innerHTML;
+          btnDaftar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+          btnDaftar.disabled = true;
+          
+          // 7. Submit form secara AJAX
+          submitFormAJAX(btnDaftar, originalText);
         });
-
-        // Tampilkan data di console (bisa diganti dengan AJAX request)
-        console.log('Data Pendaftaran:', formData);
-
-        // Simulasi pengiriman data berhasil
-        alert(`Pendaftaran untuk lomba ${currentLomba} berhasil! Data tim telah disimpan.`);
-
-        // Reset form
-        this.reset();
-        anggotaContainer.innerHTML = '';
-        anggotaCount = 0;
-        updateCounter();
-        updateTambahButton();
-        lombaInfo.style.display = 'none';
-        currentLomba = '';
-        maxAnggota = 10;
-        maxAnggotaText.textContent = '/10';
-        lombaCards.forEach(card => card.classList.remove('active'));
+      }
+      
+      // Fungsi untuk submit form via AJAX
+      function submitFormAJAX(submitBtn, originalBtnText) {
+        // Buat FormData dari form
+        const form = document.getElementById('formPendaftaran');
+        const formData = new FormData(form);
+        
+        // Pastikan jenis lomba terkirim
+        formData.append('jenis_lomba', currentLomba);
+        
+        // Debug: lihat data yang akan dikirim
+        console.log('Data yang akan dikirim:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`${key}: ${value}`);
+        }
+        
+        // Kirim via AJAX
+        fetch('proses_daftar.php', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+          return response.text();
+        })
+        .then(responseText => {
+          console.log('Response dari server:', responseText);
+          
+          // Coba parse JSON jika response adalah JSON
+          try {
+            const data = JSON.parse(responseText);
+            
+            if (data.success) {
+              // Jika menggunakan JSON response
+              alert(`✅ Pendaftaran Berhasil!\n\nID Tim: ${data.id_tim}\nNama Tim: ${data.nama_tim}\nStatus: Menunggu Verifikasi`);
+              
+              // Redirect ke konfirmasi
+              setTimeout(() => {
+                window.location.href = 'konfirmasi.php?id=' + data.id_tim;
+              }, 1500);
+              
+            } else {
+              throw new Error(data.message || 'Gagal mendaftar');
+            }
+          } catch (e) {
+            // Jika response bukan JSON (mungkin langsung redirect)
+            console.log('Response bukan JSON, kemungkinan langsung redirect');
+            
+            // Tampilkan pesan sukses
+            alert('✅ Pendaftaran berhasil! Data sedang diproses...');
+            
+            // Submit form normal untuk redirect
+            setTimeout(() => {
+              form.submit();
+            }, 1000);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('❌ Gagal mendaftar: ' + error.message);
+          
+          // Reset tombol
+          submitBtn.innerHTML = originalBtnText;
+          submitBtn.disabled = false;
+        });
+      }
+      
+      // Backup: Jika AJAX gagal, form bisa submit normal
+      document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
+        // Hanya prevent default jika tombol diklik via event listener di atas
+        // Biarkan form submit normal jika tidak
       });
+      
     });
   </script>
   <!-- Bootstrap JS -->
