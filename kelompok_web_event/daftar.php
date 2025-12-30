@@ -679,14 +679,16 @@
       </div>
 
       <div class="button-group">
-        <button type="submit"><i class="fas fa-paper-plane"></i> Daftar Sekarang</button>
+       <form action="proses_pendaftaran.php" method="POST">
+  <!-- input fields -->
+  <button type="submit"><i class="fas fa-paper-plane"></i>Daftar</button>
+</form>
         <button type="button" class="back-button" onclick="history.back()">
           <i class="fas fa-arrow-left"></i> Kembali
         </button>
       </div>
     </form>
   </div>
-
   <footer>
     <p>© 2025 Politeknik Negeri Batam - Turnamen Olahraga Antar Jurusan</p>
   </footer>

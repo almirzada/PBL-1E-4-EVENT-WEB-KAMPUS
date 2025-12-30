@@ -1,135 +1,98 @@
 <?php
-include '../config.php'
+session_start();
+// Password admin sederhana (untuk sementara)
+$admin_password = "admin123";
 
-
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+  $password = $_POST['password'];
+  
+  if ($password == $admin_password) {
+    $_SESSION['admin_logged_in'] = true;
+    header("Location: dashboard.php");
+    exit();
+  } else {
+    $error = "Password salah!";
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <title>Login Admin</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-       body {
-  min-height:100vh;
-  font-family: Arial, sans-serif;
-  background: url('Technopreneur-Polibatam-1.jpg') no-repeat center center fixed;
-  background-size: cover;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-        }
-
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url('poli.png') no-repeat center center fixed;
-            background-size: cover;
-            filter: blur(6px);
-            z-index: -1;
-        }
-
-        .box {
-            position: relative;
-            width: 380px;
-            margin: 50px auto;
-            padding: 30px;
-            background: rgba(255, 255, 255, 0.85);
-            border-radius: 15px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
-            animation: fadeIn .5s;
-            z-index: 1;
-        }
-
-        @keyframes fadeIn {
-            from {opacity:0; transform: translateY(-10px);}
-            to {opacity:1; transform: translateY(0);}
-        }
-
-        .switch-link {
-            cursor: pointer;
-            color: #007bff;
-        }
-        .switch-link:hover {
-            text-decoration: underline;
-        }
-    </style>
-
-    <script>
-        function showRegister() {
-            document.getElementById('loginForm').style.display = "none";
-            document.getElementById('registerForm').style.display = "block";
-        }
-
-        function showLogin() {
-            document.getElementById('registerForm').style.display = "none";
-            document.getElementById('loginForm').style.display = "block";
-        }
-    </script>
+  <meta charset="UTF-8">
+  <title>Login Admin</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1e88e5, #0d47a1);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .login-box {
+      background: white;
+      border-radius: 15px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 30px;
+    }
+    .lock-icon {
+      font-size: 3rem;
+      color: #1e88e5;
+      margin-bottom: 20px;
+    }
+    input[type="password"] {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      margin-bottom: 20px;
+      box-sizing: border-box;
+    }
+    button {
+      background: linear-gradient(to right, #1e88e5, #0d47a1);
+      color: white;
+      border: none;
+      padding: 15px;
+      width: 100%;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(30, 136, 229, 0.4);
+    }
+    .error {
+      color: #dc3545;
+      background: #ffe6e6;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
-
 <body>
-
-<div class="box">
-
-    <!-- LOGIN -->
-    <div id="loginForm">
-        <h3 class="text-center mb-3">Login Admin</h3>
-
-        <?php if (!empty($success)) echo "<div class='alert alert-success'>$success</div>"; ?>
-        <?php if (!empty($error)) echo "<div class='alert alert-danger'>$error</div>"; ?>
-
-        <form method="POST">
-            <div class="mb-3">
-                <label>Username</label>
-                <input type="text" class="form-control" name="username" placeholder="Masukkan username" required>
-            </div>
-
-            <div class="mb-3">
-                <label>Password</label>
-                <input type="password" class="form-control" name="password" placeholder="Masukkan password" required>
-            </div>
-
-            <button class="btn btn-primary w-100" name="login">Login</button>
-        </form>
-
-        <p class="text-center mt-3">
-            Belum punya akun?  
-            <span class="switch-link" onclick="showRegister()">Daftar</span>
-        </p>
-    </div>
-
-    <!-- REGISTER -->
-    <div id="registerForm" style="display:none;">
-        <h3 class="text-center mb-3">Registrasi</h3>
-
-        <?php if (!empty($error_reg)) echo "<div class='alert alert-danger'>$error_reg</div>"; ?>
-
-        <form method="POST">
-            <div class="mb-3">
-                <label>Buat Username</label>
-                <input type="text" class="form-control" name="new_username" required>
-            </div>
-
-            <div class="mb-3">
-                <label>Buat Password</label>
-                <input type="password" class="form-control" name="new_password" required>
-            </div>
-
-            <button class="btn btn-success w-100" name="register">Daftar</button>
-        </form>
-
-        <p class="text-center mt-3">
-            Sudah punya akun?  
-            <span class="switch-link" onclick="showLogin()">Login</span>
-        </p>
-    </div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <div class="login-box">
+    <div class="lock-icon">🔐</div>
+    <h1>Admin Login</h1>
+    <?php if (isset($error)): ?>
+      <div class="error"><?= $error ?></div>
+    <?php endif; ?>
+    <form method="POST">
+      <input type="password" name="password" placeholder="Masukkan password admin" required>
+      <button type="submit">Masuk</button>
+    </form>
+  </div>
 </body>
 </html>
