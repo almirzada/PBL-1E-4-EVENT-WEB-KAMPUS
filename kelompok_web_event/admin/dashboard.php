@@ -1,6 +1,6 @@
 <?php
 session_start();
-// PROTEKSI LOGIN
+// PROTEKSI LOGIN - PERBAIKAN UNTUK MULTI USER
 if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
     header("Location: login.php");
     exit();
@@ -16,6 +16,15 @@ $conn = new mysqli($host, $user, $pass, $dbname);
 if ($conn->connect_error) {
     die("Koneksi gagal: " . $conn->connect_error);
 }
+
+// ================================================
+// AMBIL DATA USER YANG SEDANG LOGIN
+// ================================================
+$admin_id = $_SESSION['admin_id'] ?? 0;
+$username = $_SESSION['username'] ?? '';
+$nama_lengkap = $_SESSION['nama_lengkap'] ?? '';
+$level = $_SESSION['level'] ?? 'admin';
+
 // ================================================
 // PROSES HAPUS TIM JIKA ADA PARAMETER
 // ================================================
@@ -41,6 +50,7 @@ if (isset($_GET['hapus_tim'])) {
     exit();
 }
 // ================================================
+
 // HITUNG STATISTIK - PERBAIKAN: tim → tim_lomba
 $total_pending = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
 $total_verified = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='active'")->fetch_assoc()['total'] ?? 0; // GANTI verified → active
@@ -367,6 +377,27 @@ $result_rejected = $conn->query($sql_rejected);
             color: #333;
         }
 
+        /* BADGE LEVEL USER */
+        .level-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-left: 5px;
+        }
+
+        .level-super_admin {
+            background: linear-gradient(to right, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .level-admin {
+            background: linear-gradient(to right, #3498db, #2980b9);
+            color: white;
+        }
+
         /* ACTION BUTTONS */
         .action-btns {
             display: flex;
@@ -535,8 +566,26 @@ $result_rejected = $conn->query($sql_rejected);
                     </div>
                 </div>
                 <div class="user-info">
-                    <div class="user-avatar">👨‍💼</div>
-                    <a href="logout.php" class="logout-btn" onclick="return confirm('Yakin mau logout?')">
+                    <div class="user-avatar">
+                        <?php 
+                        // Avatar berbeda untuk super_admin vs admin biasa
+                        if ($level === 'super_admin') {
+                            echo '👑'; // Crown untuk super admin
+                        } else {
+                            echo '👨‍💼'; // Avatar biasa untuk admin
+                        }
+                        ?>
+                    </div>
+                    <div style="text-align: right; margin-right: 15px;">
+                        <div style="font-weight: bold; font-size: 1.1rem;"><?php echo htmlspecialchars($nama_lengkap); ?></div>
+                        <div style="font-size: 0.85rem; opacity: 0.9;">
+                            @<?php echo htmlspecialchars($username); ?>
+                            <span class="level-badge level-<?php echo $level; ?>">
+                                <?php echo strtoupper($level); ?>
+                            </span>
+                        </div>
+                    </div>
+                    <a href="logout.php" class="logout-btn" onclick="return confirm('Yakin mau logout dari dashboard?')">
                         <span>🚪</span> Logout
                     </a>
                 </div>
@@ -571,7 +620,20 @@ $result_rejected = $conn->query($sql_rejected);
         <main class="table-section">
             <div class="section-title">
                 <h2>📋 Data Tim Lomba</h2>
-               
+                <div style="display: flex; gap: 10px;">
+                    <?php if ($level === 'super_admin'): ?>
+                    <!-- Menu khusus untuk Super Admin -->
+                    <a href="manajemen_user.php" class="add-btn" style="background: linear-gradient(to right, #ff9800, #ff5722);">
+                        <i class="fas fa-users-cog"></i> Kelola User
+                    </a>
+                    <a href="pengaturan.php" class="add-btn" style="background: linear-gradient(to right, #9c27b0, #673ab7);">
+                        <i class="fas fa-cog"></i> Pengaturan
+                    </a>
+                    <?php endif; ?>
+                    <a href="export_excel.php" class="add-btn" style="background: linear-gradient(to right, #28a745, #20c997);">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
+                </div>
             </div>
 
             <!-- TAB NAVIGATION -->
@@ -703,10 +765,10 @@ $result_rejected = $conn->query($sql_rejected);
                                             ✏️ Edit
                                         </a>
                                         <a href="javascript:void(0);" 
-   class="btn-delete"
-   onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-    🗑️ Hapus
-</a>
+                                           class="btn-delete"
+                                           onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+                                            🗑️ Hapus
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -763,10 +825,10 @@ $result_rejected = $conn->query($sql_rejected);
                                             🔄 Restore
                                         </a>
                                         <a href="javascript:void(0);" 
-   class="btn-delete"
-   onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-    🗑️ Hapus
-</a>
+                                           class="btn-delete"
+                                           onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+                                            🗑️ Hapus
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -799,7 +861,9 @@ $result_rejected = $conn->query($sql_rejected);
         <footer class="dashboard-footer">
             <p>&copy; <?php echo date('Y'); ?> - Sistem Pendaftaran Lomba Politeknik Negeri Batam</p>
             <p style="margin-top: 5px; font-size: 0.85rem;">
-                Halaman admin • Total Tim: <strong><?php echo $total_tim; ?></strong> • 
+                Login sebagai: <strong><?php echo htmlspecialchars($nama_lengkap); ?></strong> • 
+                Level: <span class="level-badge level-<?php echo $level; ?>"><?php echo strtoupper($level); ?></span> • 
+                Total Tim: <strong><?php echo $total_tim; ?></strong> • 
                 Terakhir diakses: <?php echo date('d/m/Y H:i:s'); ?>
             </p>
         </footer>
@@ -820,8 +884,6 @@ $result_rejected = $conn->query($sql_rejected);
             document.getElementById('tab-' + tabName).classList.add('active');
             event.currentTarget.classList.add('active');
         }
-
-        
 
         // FUNGSI MODAL DETAIL
         function showDetail(idTim) {
@@ -858,7 +920,7 @@ $result_rejected = $conn->query($sql_rejected);
             document.getElementById('modalEditBody').innerHTML = '';
         }
 
-                // ================================================
+        // ================================================
         // FUNGSI UNTUK HAPUS TIM
         // ================================================
         function hapusTim(idTim, namaTim) {
