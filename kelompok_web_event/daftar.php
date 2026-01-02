@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Formulir Pendaftaran Lomba</title>
- <!-- Bootstrap CSS -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<!-- Font Awesome -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
@@ -17,7 +17,7 @@
     }
 
     :root {
-      --primary: #0056b3; /* SAMA DENGAN INDEX.PHP #0056b3 */
+      --primary: #0056b3;
       --secondary: #e63946;
       --success: #28a745;
       --danger: #dc3545;
@@ -29,8 +29,6 @@
       --hover-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
     }
 
-    /* HAPUS ONLY NAVBAR CUSTOM STYLE (baris 30-85) */
-    /* TETAPKAN BODY BACKGROUND BIAR SAMA DENGAN INDEX.PHP */
     body {
       background: linear-gradient(to bottom, #f0f1f3ff 80%, #ffffff 100%);
       color: #333;
@@ -38,65 +36,63 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-     .navbar {
-            background-color: var(--primary-color);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
- 
-        .navbar-nav .nav-link {
-            position: relative;
-            padding-bottom: 6px;
-        }
- 
-        .navbar-nav .nav-link::after {
-            content: "";
-            position: absolute;
-            left: 50%;
-            bottom: 0;
-            width: 0;
-            height: 2px;
-            background-color: #ffffffff;
-            transition: all 0.3s ease;
-            transform: translateX(-50%);
-        }
- 
-        .navbar-nav .nav-link:hover::after,
-        .navbar-nav .nav-link.active::after {
-            width: 100%;
-        }
- 
- 
-        .navbar-brand img {
-            height: 50px;
-        }
- 
+    .navbar {
+      background-color: var(--primary);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
 
-    /* CONTAINER FORM (BUKAN .container BIAR GAK TABRAK BOOTSTRAP) */
-   .form-container {
-  background-color: white;
-  border-radius: 16px;
-  box-shadow: var(--card-shadow);
-  padding: 40px;
-  width: 100%;
-  max-width: 900px;
-  margin: 60px auto 30px auto; /* Tambah margin-top jadi 60px */
-  transition: box-shadow 0.3s ease;
-}
+    .navbar-nav .nav-link {
+      position: relative;
+      padding-bottom: 6px;
+    }
+
+    .navbar-nav .nav-link::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      background-color: #ffffffff;
+      transition: all 0.3s ease;
+      transform: translateX(-50%);
+    }
+
+    .navbar-nav .nav-link:hover::after,
+    .navbar-nav .nav-link.active::after {
+      width: 100%;
+    }
+
+    .navbar-brand img {
+      height: 50px;
+    }
+
+    .form-container {
+      background-color: white;
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      padding: 40px;
+      width: 100%;
+      max-width: 900px;
+      margin: 60px auto 30px auto;
+      transition: box-shadow 0.3s ease;
+    }
 
     .form-container:hover {
       box-shadow: var(--hover-shadow);
     }
 
-   h2 {
-  text-align: center;
-  color: var(--primary);
-  margin: 50px 0 30px 0; /* Tambahkan margin atas 40px */
-  font-size: 3.4rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  position: relative;
-  padding-bottom: 15px;
-}
+    h2 {
+      text-align: center;
+      color: var(--primary);
+      margin: 50px 0 30px 0;
+      font-size: 3.4rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      padding-bottom: 15px;
+    }
+
     h2:after {
       content: '';
       position: absolute;
@@ -109,49 +105,46 @@
       border-radius: 2px;
     }
 
-    /* LABEL WARNA BIRU */
-.form-group label {
-  color: #1565c0 !important; /* Biru */
-  font-weight: 600;
-  font-size: 1.1rem;
-  margin-bottom: 8px;
-  display: block;
-}
+    .form-group label {
+      color: #1565c0 !important;
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 8px;
+      display: block;
+    }
 
-/* Icon dalam label juga biru */
-.form-group label i {
-  color: #1565c0;
-  margin-right: 8px;
-}
+    .form-group label i {
+      color: #1565c0;
+      margin-right: 8px;
+    }
 
-/* Input field tetap standar */
-.input-with-icon {
-  position: relative;
-  margin-top: 5px;
-}
+    .input-with-icon {
+      position: relative;
+      margin-top: 5px;
+    }
 
-.input-with-icon i {
-  position: absolute;
-  left: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #777;
-}
+    .input-with-icon i {
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #777;
+    }
 
-.input-with-icon input {
-  width: 100%;
-  padding: 14px 14px 14px 45px;
-  border: 2px solid #ddd;
-  border-radius: 10px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-}
+    .input-with-icon input {
+      width: 100%;
+      padding: 14px 14px 14px 45px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
 
-.input-with-icon input:focus {
-  border-color: #1e88e5;
-  box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
-  outline: none;
-}
+    .input-with-icon input:focus {
+      border-color: #1e88e5;
+      box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+      outline: none;
+    }
 
     .form-header {
       text-align: center;
@@ -185,18 +178,6 @@
       font-weight: 600;
       color: #444;
       font-size: 1.7rem;
-    }
-
-    .input-with-icon {
-      position: relative;
-    }
-
-    .input-with-icon i {
-      position: absolute;
-      left: 15px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #777;
     }
 
     .input-with-icon input,
@@ -475,12 +456,88 @@
       margin-bottom: 5px;
     }
 
+    /* Footer - Diperbarui sesuai gambar */
     footer {
-      text-align: center;
-      margin-top: 30px;
-      padding: 20px;
-      color: #666;
+      background-color: #004aad;
+      color: white;
+      padding: 40px 0 20px;
+      margin-top: 50px;
+    }
+
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 50px;
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+    }
+
+    .footer-info {
+      flex: 1;
+      min-width: 300px;
+    }
+
+    .footer-info h3 {
+      color: white;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+
+    .footer-info p {
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 8px;
+      line-height: 1.6;
+    }
+
+    .footer-links {
+      flex: 0 0 200px;
+    }
+
+    .footer-links h4 {
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+
+    .footer-links ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .footer-links li {
+      margin-bottom: 10px;
+    }
+
+    .footer-links a {
+      color: rgba(255, 255, 255, 0.9);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: white;
+      text-decoration: underline;
+    }
+
+    .footer-separator {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      margin: 0 auto;
       width: 100%;
+    }
+
+    .footer-bottom {
+      text-align: center;
+      padding-top: 20px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.9rem;
     }
 
     /* Animations */
@@ -489,7 +546,6 @@
         opacity: 0;
         transform: translateY(20px);
       }
-
       to {
         opacity: 1;
         transform: translateY(0);
@@ -505,7 +561,6 @@
         opacity: 0;
         transform: translateX(-20px);
       }
-
       to {
         opacity: 1;
         transform: translateX(0);
@@ -549,36 +604,53 @@
       .lomba-cards {
         flex-direction: column;
       }
+
+      .footer-container {
+        padding: 0 20px;
+      }
+
+      .footer-top {
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      .footer-info, .footer-links {
+        width: 100%;
+      }
+
+      .footer-links {
+        margin-top: 10px;
+      }
     }
   </style>
 </head>
 
 <body>
- <!-- Navbar Bootstrap Sama dengan Index.php -->
-<nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #0056b3;">
-  <div class="container">
-    <a class="navbar-brand" href="index.php">
-      <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" 
-           height="50" alt="Politeknik Negeri Batam">
-    </a>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-      <span class="navbar-toggler-icon"></span>
-    </button>
-    <div class="collapse navbar-collapse" id="navbarNav">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item">
-          <a class="nav-link" href="index.php">Beranda</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link active" href="daftar.php">Pendaftaran</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="admin/login.php">Admin</a>
-        </li>
-      </ul>
+  <!-- Navbar Bootstrap Sama dengan Index.php -->
+  <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #0056b3;">
+    <div class="container">
+      <a class="navbar-brand" href="index.php">
+        <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" 
+             height="50" alt="Politeknik Negeri Batam">
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="index.php">Beranda</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="daftar.php">Pendaftaran</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="admin/login.php">Admin</a>
+          </li>
+        </ul>
+      </div>
     </div>
-  </div>
-</nav>
+  </nav>
 
   <div class="container">
     <h2><i class="fas fa-trophy"></i> Formulir Pendaftaran</h2>
@@ -695,7 +767,6 @@
       </div>
 
       <div class="button-group">
-        <!-- HAPUS FORM YANG SALAH DAN GUNAKAN TOMBOL SUBMIT YANG BENAR -->
         <button type="submit"><i class="fas fa-paper-plane"></i> Daftar</button>
         <button type="button" class="back-button" onclick="history.back()">
           <i class="fas fa-arrow-left"></i> Kembali
@@ -703,8 +774,36 @@
       </div>
     </form>
   </div>
+
+  <!-- Footer sesuai gambar dengan warna biru -->
   <footer>
-    <p>© 2025 Politeknik Negeri Batam - Turnamen Olahraga Antar Jurusan</p>
+    <div class="footer-container">
+      <div class="footer-top">
+        <div class="footer-info">
+          <h3>Politeknik Negeri Batam</h3>
+          <p>Jl. Ahmad Yani, Batam Kota, Batam 29461</p>
+          <p>Kepulauan Riau, Indonesia</p>
+          <p>Telp: (0778) 469856</p>
+          <p>Email: info@polibatam.ac.id</p>
+        </div>
+        
+        <div class="footer-links">
+          <h4>Tautan Cepat</h4>
+          <ul>
+            <!-- Tautan Beranda -->
+            <li><a href="index.php" style="color: white;">Beranda</a></li>
+            <!-- Tautan Pendaftaran -->
+            <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <hr class="footer-separator">
+      
+      <div class="footer-bottom">
+        <p>&copy; 2025 Politeknik Negeri Batam. All rights reserved.</p>
+      </div>
+    </div>
   </footer>
 
   <script>
@@ -839,18 +938,16 @@
         updateTambahButton();
       }
 
-      // Fungsi untuk mendapatkan opsi posisi berdasarkan lomba
-     // Fungsi untuk mendapatkan opsi tahun angkatan
-function getPosisiOptions(lomba) {
-  // KINI MENJADI TAHUN ANGKATAN untuk semua lomba
-  return `
-    <option value="2022">2022</option>
-    <option value="2023">2023</option>
-    <option value="2024">2024</option>
-    <option value="2025">2025</option>
-    <option value="2026">2026</option>
-  `;
-}
+      // Fungsi untuk mendapatkan opsi tahun angkatan
+      function getPosisiOptions(lomba) {
+        return `
+          <option value="2022">2022</option>
+          <option value="2023">2023</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+        `;
+      }
 
       // Fungsi untuk menghapus anggota
       function hapusAnggota(anggotaItem) {
@@ -904,10 +1001,6 @@ function getPosisiOptions(lomba) {
       // Event listener untuk tombol tambah anggota
       tambahAnggotaBtn.addEventListener('click', tambahAnggota);
 
-      // ================================================
-      // BAGIAN SUBMIT YANG BARU - GANTI DARI SINI KE BAWAH
-      // ================================================
-      
       // Event listener untuk tombol Daftar
       const btnDaftar = document.querySelector('#formPendaftaran button[type="submit"]');
       
@@ -1051,7 +1144,6 @@ function getPosisiOptions(lomba) {
     });
   </script>
   <!-- Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

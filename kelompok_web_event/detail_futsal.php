@@ -225,13 +225,88 @@
             background-color: #545b62;
         }
 
-        /* Footer */
+        /* Footer - Diperbarui sesuai gambar */
         footer {
             background-color: #004aad;
             color: white;
-            text-align: center;
-            padding: 20px 0;
+            padding: 40px 0 20px;
             margin-top: 50px;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 50px;
+        }
+
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+
+        .footer-info {
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .footer-info h3 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .footer-info p {
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .footer-links {
+            flex: 0 0 200px;
+        }
+
+        .footer-links h4 {
+            color: white;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .footer-links ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .footer-links li {
+            margin-bottom: 10px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .footer-separator {
+            border: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
         }
 
         /* Animations */
@@ -303,6 +378,23 @@
 
             .rules-content li {
                 font-size: 14px;
+            }
+
+            .footer-container {
+                padding: 0 20px;
+            }
+
+            .footer-top {
+                flex-direction: column;
+                gap: 30px;
+            }
+
+            .footer-info, .footer-links {
+                width: 100%;
+            }
+
+            .footer-links {
+                margin-top: 10px;
             }
         }
     </style>
@@ -402,10 +494,10 @@
         <div class="schedule-contact">
             <div class="schedule-box">
                 <h3><i class="fas fa-calendar-alt"></i> Jadwal Pelaksanaan</h3>
-                <p><strong>Tanggal:</strong> 13 Desember 2025</p>
-                <p><strong>Waktu:</strong> 08.00 - 17.00 WIB</p>
-                <p><strong>Tempat:</strong> Lapangan Futsal Polibatam</p>
-                <p><strong>Pendaftaran:</strong> 1 November - 5 Desember 2025</p>
+                <p><i class="fas fa-calendar-day"></i> <strong>Tanggal:</strong> 13 Desember 2025</p>
+                <p><i class="fas fa-clock"></i> <strong>Waktu:</strong> 08.00 - 17.00 WIB</p>
+                <p><i class="fas fa-map-marker-alt"></i> <strong>Tempat:</strong> Lapangan Futsal Polibatam</p>
+                <p><i class="fas fa-user-plus"></i> <strong>Pendaftaran:</strong> 1 November - 5 Desember 2025</p>
             </div>
 
             <div class="contact-box">
@@ -417,18 +509,43 @@
             </div>
         </div>
 
-
         <div class="button-group">
-    <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
-    <button onclick="window.location.href='index.php'">
-        <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
-    </button>
-
-</div>
+            <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
+            <button onclick="window.location.href='index.php'">
+                <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
+            </button>
+        </div>
     </main>
 
+    <!-- Footer sesuai gambar dengan warna biru -->
     <footer>
-        <p>© 2025 Politeknik Negeri Batam - Turnamen Futsal Antar Jurusan</p>
+        <div class="footer-container">
+            <div class="footer-top">
+                <div class="footer-info">
+                    <h3>Politeknik Negeri Batam</h3>
+                    <p>Jl. Ahmad Yani, Batam Kota, Batam 29461</p>
+                    <p>Kepulauan Riau, Indonesia</p>
+                    <p>Telp: (0778) 469856</p>
+                    <p>Email: info@polibatam.ac.id</p>
+                </div>
+                
+                <div class="footer-links">
+                    <h4>Tautan Cepat</h4>
+                    <ul>
+                        <!-- Tautan Beranda -->
+                        <li><a href="index.php" style="color: white;">Beranda</a></li>
+                        <!-- Tautan Pendaftaran -->
+                        <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <hr class="footer-separator">
+            
+            <div class="footer-bottom">
+                <p>&copy; 2025 Politeknik Negeri Batam. All rights reserved.</p>
+            </div>
+        </div>
     </footer>
 
     <script>
