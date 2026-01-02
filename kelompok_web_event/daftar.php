@@ -1,3 +1,59 @@
+<?php
+// ============ CEK STATUS PENDAFTARAN & KUOTA ============
+session_start();
+
+// KONEKSI DATABASE
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "db_lomba";
+
+$conn = new mysqli($host, $user, $pass, $dbname);
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
+// AMBIL PENGATURAN DARI DATABASE
+$pengaturan = [];
+$result = $conn->query("SELECT nama_setting, nilai_setting FROM pengaturan_sistem");
+while ($row = $result->fetch_assoc()) {
+    $pengaturan[$row['nama_setting']] = $row['nilai_setting'];
+}
+
+// JIKA TABEL BELUM ADA, PAKE DEFAULT
+if (empty($pengaturan)) {
+    $pengaturan = [
+        'status_pendaftaran' => 'buka',
+        'kuota_futsal' => '16',
+        'kuota_basket' => '12', 
+        'kuota_badminton' => '32',
+        'batas_pendaftaran' => '2025-12-31'
+    ];
+}
+
+// 1. CEK STATUS PENDAFTARAN
+if (($pengaturan['status_pendaftaran'] ?? 'buka') == 'tutup') {
+    $conn->close();
+    die("<h1 style='text-align:center; padding:50px;'>❌ PENDAFTARAN TELAH DITUTUP</h1>");
+}
+
+// 2. HITUNG KUOTA YANG SUDAH TERISI
+$futsal_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Futsal' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
+$basket_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Basket' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
+$badminton_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Badminton' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
+
+// 3. CEK APAKAH KUOTA PENUH
+$kuota_futsal = intval($pengaturan['kuota_futsal'] ?? 16);
+$kuota_basket = intval($pengaturan['kuota_basket'] ?? 12);
+$kuota_badminton = intval($pengaturan['kuota_badminton'] ?? 32);
+
+$futsal_penuh = ($futsal_terdaftar >= $kuota_futsal);
+$basket_penuh = ($basket_terdaftar >= $kuota_basket);
+$badminton_penuh = ($badminton_terdaftar >= $kuota_badminton);
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -456,6 +512,33 @@
       margin-bottom: 5px;
     }
 
+    /* CSS TAMBAHAN UNTUK KUOTA */
+.lomba-card.disabled {
+    opacity: 0.5;
+    cursor: not-allowed !important;
+    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+    border-color: #ccc !important;
+}
+
+.lomba-card.disabled:hover {
+    transform: none !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+.kuota-info {
+    text-align: center;
+    margin: 10px 0 20px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.kuota-info strong {
+    color: #0056b3;
+}
+
     /* Footer - Diperbarui sesuai gambar */
     footer {
       background-color: #004aad;
@@ -626,6 +709,7 @@
 </head>
 
 <body>
+  
   <!-- Navbar Bootstrap Sama dengan Index.php -->
   <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #0056b3;">
     <div class="container">
@@ -721,29 +805,58 @@
 
       <div class="lomba-section">
         <h4><i class="fas fa-running"></i> Pilih Jenis Lomba</h4>
-        <div class="lomba-cards">
-          <div class="lomba-card" data-lomba="Futsal">
-            <div class="lomba-icon">
-              <i class="fas fa-futbol"></i>
-            </div>
-            <h5>Futsal</h5>
-            <p>Maks. 10 Pemain</p>
-          </div>
-          <div class="lomba-card" data-lomba="Basket">
-            <div class="lomba-icon">
-              <i class="fas fa-basketball-ball"></i>
-            </div>
-            <h5>Basket</h5>
-            <p>Maks. 12 Pemain</p>
-          </div>
-          <div class="lomba-card" data-lomba="Badminton">
-            <div class="lomba-icon">
-              <i class="fas fa-table-tennis"></i>
-            </div>
-            <h5>Badminton</h5>
-            <p>Maks. 2 Pemain</p>
-          </div>
-        </div>
+        <!-- INFO KUOTA TERSEDIA -->
+<div class="kuota-info">
+  <i class="fas fa-info-circle"></i> 
+  Kuota tersedia: 
+  <strong>Futsal (<?php echo $kuota_futsal - $futsal_terdaftar; ?>)</strong> | 
+  <strong>Basket (<?php echo $kuota_basket - $basket_terdaftar; ?>)</strong> | 
+  <strong>Badminton (<?php echo $kuota_badminton - $badminton_terdaftar; ?>)</strong>
+</div>
+
+<div class="lomba-cards">
+  <!-- FUTSAL -->
+  <div class="lomba-card <?php echo $futsal_penuh ? 'disabled' : ''; ?>" 
+       data-lomba="Futsal"
+       <?php if ($futsal_penuh) echo 'title="Kuota telah penuh"'; ?>>
+    <div class="lomba-icon">
+      <i class="fas fa-futbol"></i>
+    </div>
+    <h5>Futsal</h5>
+    <p><?php echo $futsal_terdaftar . '/' . $kuota_futsal; ?> Tim</p>
+    <?php if ($futsal_penuh): ?>
+    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
+    <?php endif; ?>
+  </div>
+  
+  <!-- BASKET -->
+  <div class="lomba-card <?php echo $basket_penuh ? 'disabled' : ''; ?>" 
+       data-lomba="Basket"
+       <?php if ($basket_penuh) echo 'title="Kuota telah penuh"'; ?>>
+    <div class="lomba-icon">
+      <i class="fas fa-basketball-ball"></i>
+    </div>
+    <h5>Basket</h5>
+    <p><?php echo $basket_terdaftar . '/' . $kuota_basket; ?> Tim</p>
+    <?php if ($basket_penuh): ?>
+    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
+    <?php endif; ?>
+  </div>
+  
+  <!-- BADMINTON -->
+  <div class="lomba-card <?php echo $badminton_penuh ? 'disabled' : ''; ?>" 
+       data-lomba="Badminton"
+       <?php if ($badminton_penuh) echo 'title="Kuota telah penuh"'; ?>>
+    <div class="lomba-icon">
+      <i class="fas fa-table-tennis"></i>
+    </div>
+    <h5>Badminton</h5>
+    <p><?php echo $badminton_terdaftar . '/' . $kuota_badminton; ?> Tim</p>
+    <?php if ($badminton_penuh): ?>
+    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
+    <?php endif; ?>
+  </div>
+</div>
         <input type="hidden" id="lomba" name="jenis_lomba" required>
       </div>
 
@@ -904,8 +1017,15 @@
 
     // Event listener untuk kartu lomba
     lombaCards.forEach(card => {
-        card.addEventListener('click', function () {
-            const selectedLomba = this.getAttribute('data-lomba');
+    card.addEventListener('click', function () {
+        // CEK APAKAH KARTU DISABLED (KUOTA PENUH)
+        if (this.classList.contains('disabled')) {
+            const lombaName = this.getAttribute('data-lomba');
+            alert(`❌ Maaf, kuota untuk lomba ${lombaName} sudah penuh!`);
+            return;
+        }
+        
+        const selectedLomba = this.getAttribute('data-lomba');
 
             // Hapus kelas active dari semua kartu
             lombaCards.forEach(c => c.classList.remove('active'));
@@ -1101,26 +1221,31 @@
                 alert('❌ Pilih jenis lomba terlebih dahulu!');
                 return;
             }
-            
-            // 2. Pastikan input hidden lomba terisi
+             // 2. CEK KUOTA PENUH
+        const selectedCard = document.querySelector(`.lomba-card[data-lomba="${currentLomba}"]`);
+        if (selectedCard && selectedCard.classList.contains('disabled')) {
+            alert(`❌ Maaf, kuota untuk lomba ${currentLomba} sudah penuh!`);
+            return;
+        }
+            // 3. Pastikan input hidden lomba terisi
             document.getElementById('lomba').value = currentLomba;
             
-            // 3. Validasi tahun angkatan ketua
+            // 4. Validasi tahun angkatan ketua
             const tahunKetua = document.getElementById('tahun');
             if (!tahunKetua || !tahunKetua.value) {
                 alert('❌ Pilih tahun angkatan ketua tim!');
                 tahunKetua?.focus();
                 return;
             }
-            
-            // 4. Validasi minimal anggota
+
+            // 5. Validasi minimal anggota
             const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
             if (anggotaCount < minAnggota) {
                 alert(`❌ Untuk lomba ${currentLomba}, minimal ${minAnggota} anggota tim!`);
                 return;
             }
-            
-            // 5. Validasi semua input required
+
+            // 6. Validasi semua input required
             const requiredInputs = document.querySelectorAll('#formPendaftaran input[required], #formPendaftaran select[required]');
             let semuaValid = true;
             let firstInvalid = null;
@@ -1144,7 +1269,7 @@
                 return;
             }
             
-            // 6. Validasi format NIM (harus angka semua)
+            // 7. Validasi format NIM (harus angka semua)
             const nimValue = document.getElementById('nim').value;
             if (!/^\d+$/.test(nimValue)) {
                 alert('❌ NIM harus berupa angka!');
@@ -1176,84 +1301,10 @@
             btnDaftar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
             btnDaftar.disabled = true;
             
-            // 10. Submit form secara AJAX
-            submitFormAJAX(btnDaftar, originalText);
+              // 10. Submit form NORMAL (TANPA AJAX)
+            document.getElementById('formPendaftaran').submit();
         });
     }
-    
-    // Fungsi untuk submit form via AJAX
-    function submitFormAJAX(submitBtn, originalBtnText) {
-        // Buat FormData dari form
-        const form = document.getElementById('formPendaftaran');
-        const formData = new FormData(form);
-        
-        // Pastikan jenis lomba terkirim
-        formData.append('jenis_lomba', currentLomba);
-        
-        // Debug: lihat data yang akan dikirim
-        console.log('Data yang akan dikirim:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`${key}: ${value}`);
-        }
-        
-        // Kirim via AJAX
-        fetch('proses_daftar.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.text();
-        })
-        .then(responseText => {
-            console.log('Response dari server:', responseText);
-            
-            // Coba parse JSON jika response adalah JSON
-            try {
-                const data = JSON.parse(responseText);
-                
-                if (data.success) {
-                    // Jika menggunakan JSON response
-                    alert(`✅ Pendaftaran Berhasil!\n\nID Tim: ${data.id_tim}\nNama Tim: ${data.nama_tim}\nStatus: Menunggu Verifikasi`);
-                    
-                    // Redirect ke konfirmasi
-                    setTimeout(() => {
-                        window.location.href = 'konfirmasi.php?id=' + data.id_tim;
-                    }, 1500);
-                    
-                } else {
-                    throw new Error(data.message || 'Gagal mendaftar');
-                }
-            } catch (e) {
-                // Jika response bukan JSON (mungkin langsung redirect)
-                console.log('Response bukan JSON, kemungkinan langsung redirect');
-                
-                // Tampilkan pesan sukses
-                alert('✅ Pendaftaran berhasil! Data sedang diproses...');
-                
-                // Submit form normal untuk redirect
-                setTimeout(() => {
-                    form.submit();
-                }, 1000);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('❌ Gagal mendaftar: ' + error.message);
-            
-            // Reset tombol
-            submitBtn.innerHTML = originalBtnText;
-            submitBtn.disabled = false;
-        });
-    }
-    
-    // Backup: Jika AJAX gagal, form bisa submit normal
-    document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
-        // Hanya prevent default jika tombol diklik via event listener di atas
-        // Biarkan form submit normal jika tidak
-    });
 });
   </script>
   <!-- Bootstrap JS -->
