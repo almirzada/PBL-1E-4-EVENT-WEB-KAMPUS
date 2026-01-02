@@ -478,7 +478,7 @@
                     <li><strong>Gawang & Bola:</strong> Ukuran gawang 3m × 2m. Bola nomor 4 dengan pantulan kecil.</li>
                     <li><strong>Pelanggaran (Foul):</strong> Tarik kaos, senggolan berbahaya, atau tangan (kecuali
                         kiper) dihitung foul. Setelah 5 foul, tim lawan mendapat tendangan bebas tanpa pagar.</li>
-                    <li><strong>Kiper:</strong> Kiper hanya boleh memegang bola selama maksimal 4 detik di area
+                    <li><strong>Kiper:</strong> Kiper hanya 
                         gawangnya.</li>
                     <li><strong>Restart:</strong> Kick-in untuk bola keluar samping; corner untuk bola kena pemain
                         bertahan; goal kick untuk gol sendiri.</li>
