@@ -808,89 +808,148 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      const anggotaContainer = document.getElementById('anggotaContainer');
-      const tambahAnggotaBtn = document.getElementById('tambahAnggota');
-      const anggotaCountSpan = document.getElementById('anggotaCount');
-      const maxAnggotaText = document.getElementById('maxAnggotaText');
-      const lombaCards = document.querySelectorAll('.lomba-card');
-      const lombaInput = document.getElementById('lomba');
-      const lombaInfo = document.getElementById('lombaInfo');
-      const infoText = document.getElementById('infoText');
+    const anggotaContainer = document.getElementById('anggotaContainer');
+    const tambahAnggotaBtn = document.getElementById('tambahAnggota');
+    const anggotaCountSpan = document.getElementById('anggotaCount');
+    const maxAnggotaText = document.getElementById('maxAnggotaText');
+    const lombaCards = document.querySelectorAll('.lomba-card');
+    const lombaInput = document.getElementById('lomba');
+    const lombaInfo = document.getElementById('lombaInfo');
+    const infoText = document.getElementById('infoText');
 
-      let anggotaCount = 0;
-      let maxAnggota = 10;
-      let currentLomba = '';
+    let anggotaCount = 0;
+    let maxAnggota = 10;
+    let currentLomba = '';
 
-      // Informasi untuk setiap lomba
-      const lombaDetails = {
+    // Informasi untuk setiap lomba
+    const lombaDetails = {
         'Futsal': {
-          maxAnggota: 10,
-          info: 'Futsal: Maksimal 10 pemain (5 pemain utama + 5 cadangan) Minimal 7 anggota. Durasi pertandingan 2x20 menit waktu kotor.',
-          icon: 'futbol',
-          color: '#004aad'
+            maxAnggota: 10,
+            info: 'Futsal: Maksimal 10 pemain (5 pemain utama + 5 cadangan) Minimal 7 anggota. Durasi pertandingan 2x20 menit waktu kotor.',
+            icon: 'futbol',
+            color: '#004aad'
         },
         'Basket': {
-          maxAnggota: 12,
-          info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan) Minimal 7 anggota. Durasi pertandingan 3x10 menit.',
-          icon: 'basketball-ball',
-          color: '#e63946'
+            maxAnggota: 12,
+            info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan) Minimal 7 anggota. Durasi pertandingan 3x10 menit.',
+            icon: 'basketball-ball',
+            color: '#e63946'
         },
         'Badminton': {
-          maxAnggota: 2,
-          info: 'Badminton Ganda: Maksimal 2 pemain per tim. Sistem gugur dengan best of three sets.',
-          icon: 'TableTennisPaddleBall',
-          color: '#28a745'
+            maxAnggota: 2,
+            info: 'Badminton Ganda: Maksimal 2 pemain per tim. Sistem gugur dengan best of three sets.',
+            icon: 'TableTennisPaddleBall',
+            color: '#28a745'
         }
-      };
+    };
 
-      // Event listener untuk kartu lomba
-      lombaCards.forEach(card => {
-        card.addEventListener('click', function () {
-          const selectedLomba = this.getAttribute('data-lomba');
-
-          // Hapus kelas active dari semua kartu
-          lombaCards.forEach(c => c.classList.remove('active'));
-
-          // Tambah kelas active ke kartu yang dipilih
-          this.classList.add('active');
-
-          // Set nilai input hidden
-          lombaInput.value = selectedLomba;
-          currentLomba = selectedLomba;
-
-          // Tampilkan informasi lomba
-          if (currentLomba && lombaDetails[currentLomba]) {
-            maxAnggota = lombaDetails[currentLomba].maxAnggota;
-            infoText.textContent = lombaDetails[currentLomba].info;
-            maxAnggotaText.textContent = `/${maxAnggota}`;
-            lombaInfo.style.display = 'block';
-
-            // Reset anggota jika melebihi batas baru
-            if (anggotaCount > maxAnggota) {
-              const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
-              for (let i = maxAnggota; i < anggotaItems.length; i++) {
-                anggotaItems[i].remove();
-              }
-              anggotaCount = maxAnggota;
-              updateCounter();
-              updateAnggotaNumbers();
-            }
-
-            updateTambahButton();
-          }
+    // ============ VALIDASI INPUT REAL-TIME ============
+    
+    // 1. NAMA KETUA - Hanya huruf dan spasi
+    const namaInput = document.getElementById('nama');
+    if (namaInput) {
+        namaInput.addEventListener('input', function() {
+            // Hapus angka dan karakter khusus, kecuali spasi
+            this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
         });
-      });
+    }
 
-      // Fungsi untuk menambah anggota
-      function tambahAnggota() {
+    // 2. NIM - Hanya angka (6-10 digit)
+    const nimInput = document.getElementById('nim');
+    if (nimInput) {
+        nimInput.addEventListener('input', function() {
+            // Hapus semua yang bukan angka
+            this.value = this.value.replace(/\D/g, '');
+            
+            // Batasi panjang maksimal 10 digit
+            if (this.value.length > 10) {
+                this.value = this.value.slice(0, 10);
+            }
+        });
+    }
+
+    // 3. PRODI - Hanya huruf, spasi, dan tanda hubung
+    const prodiInput = document.getElementById('prodi');
+    if (prodiInput) {
+        prodiInput.addEventListener('input', function() {
+            // Hanya huruf, spasi, dan tanda hubung
+            this.value = this.value.replace(/[^a-zA-Z\s\-]/g, '');
+        });
+    }
+
+    // 4. NOMOR WA - Hanya angka
+    const waInput = document.getElementById('wa');
+    if (waInput) {
+        waInput.addEventListener('input', function() {
+            // Hapus semua yang bukan angka
+            let value = this.value.replace(/\D/g, '');
+            
+            // Pastikan tidak melebihi 13 digit (62xxxxxxxxxxx)
+            if (value.length > 13) {
+                value = value.slice(0, 13);
+            }
+            
+            this.value = value;
+        });
+    }
+
+    // 5. NAMA TIM - Boleh huruf, angka, spasi (sesuai kode awal)
+    const namaTimInput = document.getElementById('ketua');
+    if (namaTimInput) {
+        namaTimInput.addEventListener('input', function() {
+            // Boleh huruf, angka, spasi (sesuai kode awal)
+            this.value = this.value.replace(/[^a-zA-Z0-9\s]/g, '');
+        });
+    }
+
+    // Event listener untuk kartu lomba
+    lombaCards.forEach(card => {
+        card.addEventListener('click', function () {
+            const selectedLomba = this.getAttribute('data-lomba');
+
+            // Hapus kelas active dari semua kartu
+            lombaCards.forEach(c => c.classList.remove('active'));
+
+            // Tambah kelas active ke kartu yang dipilih
+            this.classList.add('active');
+
+            // Set nilai input hidden
+            lombaInput.value = selectedLomba;
+            currentLomba = selectedLomba;
+
+            // Tampilkan informasi lomba
+            if (currentLomba && lombaDetails[currentLomba]) {
+                maxAnggota = lombaDetails[currentLomba].maxAnggota;
+                infoText.textContent = lombaDetails[currentLomba].info;
+                maxAnggotaText.textContent = `/${maxAnggota}`;
+                lombaInfo.style.display = 'block';
+
+                // Reset anggota jika melebihi batas baru
+                if (anggotaCount > maxAnggota) {
+                    const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
+                    for (let i = maxAnggota; i < anggotaItems.length; i++) {
+                        anggotaItems[i].remove();
+                    }
+                    anggotaCount = maxAnggota;
+                    updateCounter();
+                    updateAnggotaNumbers();
+                }
+
+                updateTambahButton();
+            }
+        });
+    });
+
+    // Fungsi untuk menambah anggota
+    function tambahAnggota() {
         if (!currentLomba) {
-          alert('Pilih jenis lomba terlebih dahulu!');
-          return;
+            alert('Pilih jenis lomba terlebih dahulu!');
+            return;
         }
 
         if (anggotaCount >= maxAnggota) {
-          alert(`Maksimal ${maxAnggota} anggota untuk lomba ${currentLomba}!`);
-          return;
+            alert(`Maksimal ${maxAnggota} anggota untuk lomba ${currentLomba}!`);
+            return;
         }
 
         anggotaCount++;
@@ -910,7 +969,7 @@
             </div>
             <div class="form-group">
               <label for="anggota_nim_${anggotaCount}">NIM</label>
-              <input type="number" id="anggota_nim_${anggotaCount}" name="anggota_nim[]" required placeholder="NIM anggota">
+              <input type="text" id="anggota_nim_${anggotaCount}" name="anggota_nim[]" required placeholder="NIM anggota">
             </div>
             <div class="form-group">
               <label for="anggota_prodi_${anggotaCount}">Program Studi</label>
@@ -927,19 +986,47 @@
 
         anggotaContainer.appendChild(anggotaItem);
 
+        // ============ VALIDASI INPUT ANGGOTA BARU ============
+        // Validasi Nama Anggota (hanya huruf)
+        const anggotaNamaInput = anggotaItem.querySelector(`#anggota_nama_${anggotaCount}`);
+        if (anggotaNamaInput) {
+            anggotaNamaInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
+            });
+        }
+
+        // Validasi NIM Anggota (hanya angka)
+        const anggotaNimInput = anggotaItem.querySelector(`#anggota_nim_${anggotaCount}`);
+        if (anggotaNimInput) {
+            anggotaNimInput.addEventListener('input', function() {
+                this.value = this.value.replace(/\D/g, '');
+                if (this.value.length > 10) {
+                    this.value = this.value.slice(0, 10);
+                }
+            });
+        }
+
+        // Validasi Prodi Anggota (hanya huruf)
+        const anggotaProdiInput = anggotaItem.querySelector(`#anggota_prodi_${anggotaCount}`);
+        if (anggotaProdiInput) {
+            anggotaProdiInput.addEventListener('input', function() {
+                this.value = this.value.replace(/[^a-zA-Z\s\-]/g, '');
+            });
+        }
+
         // Tambah event listener untuk tombol hapus
         const removeBtn = anggotaItem.querySelector('.remove-anggota');
         if (removeBtn) {
-          removeBtn.addEventListener('click', function () {
-            hapusAnggota(anggotaItem);
-          });
+            removeBtn.addEventListener('click', function () {
+                hapusAnggota(anggotaItem);
+            });
         }
 
         updateTambahButton();
-      }
+    }
 
-      // Fungsi untuk mendapatkan opsi tahun angkatan
-      function getPosisiOptions(lomba) {
+    // Fungsi untuk mendapatkan opsi tahun angkatan
+    function getPosisiOptions(lomba) {
         return `
           <option value="2022">2022</option>
           <option value="2023">2023</option>
@@ -947,128 +1034,155 @@
           <option value="2025">2025</option>
           <option value="2026">2026</option>
         `;
-      }
+    }
 
-      // Fungsi untuk menghapus anggota
-      function hapusAnggota(anggotaItem) {
+    // Fungsi untuk menghapus anggota
+    function hapusAnggota(anggotaItem) {
         anggotaItem.remove();
         anggotaCount--;
         updateCounter();
         updateAnggotaNumbers();
         updateTambahButton();
-      }
+    }
 
-      // Fungsi untuk memperbarui nomor anggota
-      function updateAnggotaNumbers() {
+    // Fungsi untuk memperbarui nomor anggota
+    function updateAnggotaNumbers() {
         const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
         anggotaItems.forEach((item, index) => {
-          const title = item.querySelector('.anggota-title');
-          title.innerHTML = `<i class="fas fa-user"></i> Anggota ${index + 1}`;
+            const title = item.querySelector('.anggota-title');
+            title.innerHTML = `<i class="fas fa-user"></i> Anggota ${index + 1}`;
 
-          // Update input IDs dan names
-          const inputs = item.querySelectorAll('input, select');
-          inputs.forEach(input => {
-            const baseName = input.name.replace(/\[\]$/, '');
-            input.name = `${baseName}[]`;
-            input.id = `${baseName}_${index + 1}`;
-          });
+            // Update input IDs dan names
+            const inputs = item.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                const baseName = input.name.replace(/\[\]$/, '');
+                input.name = `${baseName}[]`;
+                input.id = `${baseName}_${index + 1}`;
+            });
         });
-      }
+    }
 
-      // Fungsi untuk memperbarui counter
-      function updateCounter() {
+    // Fungsi untuk memperbarui counter
+    function updateCounter() {
         anggotaCountSpan.textContent = anggotaCount;
         if (anggotaCount >= maxAnggota) {
-          anggotaCountSpan.classList.add('max-warning');
+            anggotaCountSpan.classList.add('max-warning');
         } else {
-          anggotaCountSpan.classList.remove('max-warning');
+            anggotaCountSpan.classList.remove('max-warning');
         }
-      }
+    }
 
-      // Fungsi untuk update status tombol tambah
-      function updateTambahButton() {
+    // Fungsi untuk update status tombol tambah
+    function updateTambahButton() {
         if (anggotaCount >= maxAnggota) {
-          tambahAnggotaBtn.disabled = true;
-          tambahAnggotaBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
-          tambahAnggotaBtn.innerHTML = '<i class="fas fa-ban"></i> Maksimal Anggota';
+            tambahAnggotaBtn.disabled = true;
+            tambahAnggotaBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
+            tambahAnggotaBtn.innerHTML = '<i class="fas fa-ban"></i> Maksimal Anggota';
         } else {
-          tambahAnggotaBtn.disabled = false;
-          tambahAnggotaBtn.style.background = '';
-          tambahAnggotaBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah Anggota';
+            tambahAnggotaBtn.disabled = false;
+            tambahAnggotaBtn.style.background = '';
+            tambahAnggotaBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah Anggota';
         }
-      }
+    }
 
-      // Event listener untuk tombol tambah anggota
-      tambahAnggotaBtn.addEventListener('click', tambahAnggota);
+    // Event listener untuk tombol tambah anggota
+    tambahAnggotaBtn.addEventListener('click', tambahAnggota);
 
-      // Event listener untuk tombol Daftar
-      const btnDaftar = document.querySelector('#formPendaftaran button[type="submit"]');
-      
-      if (btnDaftar) {
+    // Event listener untuk tombol Daftar
+    const btnDaftar = document.querySelector('#formPendaftaran button[type="submit"]');
+    
+    if (btnDaftar) {
         btnDaftar.addEventListener('click', function(e) {
-          e.preventDefault();
-          console.log("Tombol Daftar diklik!");
-          
-          // 1. Validasi lomba dipilih
-          if (!currentLomba) {
-            alert('❌ Pilih jenis lomba terlebih dahulu!');
-            return;
-          }
-          
-          // 2. Pastikan input hidden lomba terisi
-          document.getElementById('lomba').value = currentLomba;
-          
-          // 3. Validasi tahun angkatan ketua
-          const tahunKetua = document.getElementById('tahun');
-          if (!tahunKetua || !tahunKetua.value) {
-            alert('❌ Pilih tahun angkatan ketua tim!');
-            tahunKetua?.focus();
-            return;
-          }
-          
-          // 4. Validasi minimal anggota
-          const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
-          if (anggotaCount < minAnggota) {
-            alert(`❌ Untuk lomba ${currentLomba}, minimal ${minAnggota} anggota tim!`);
-            return;
-          }
-          
-          // 5. Validasi semua input required
-          const requiredInputs = document.querySelectorAll('#formPendaftaran input[required], #formPendaftaran select[required]');
-          let semuaValid = true;
-          let firstInvalid = null;
-          
-          requiredInputs.forEach(input => {
-            if (!input.value.trim()) {
-              semuaValid = false;
-              input.style.borderColor = 'red';
-              
-              if (!firstInvalid) {
-                firstInvalid = input;
-              }
+            e.preventDefault();
+            console.log("Tombol Daftar diklik!");
+            
+            // 1. Validasi lomba dipilih
+            if (!currentLomba) {
+                alert('❌ Pilih jenis lomba terlebih dahulu!');
+                return;
             }
-          });
-          
-          if (!semuaValid) {
-            alert('❌ Harap isi semua data yang diperlukan!');
-            if (firstInvalid) {
-              firstInvalid.focus();
+            
+            // 2. Pastikan input hidden lomba terisi
+            document.getElementById('lomba').value = currentLomba;
+            
+            // 3. Validasi tahun angkatan ketua
+            const tahunKetua = document.getElementById('tahun');
+            if (!tahunKetua || !tahunKetua.value) {
+                alert('❌ Pilih tahun angkatan ketua tim!');
+                tahunKetua?.focus();
+                return;
             }
-            return;
-          }
-          
-          // 6. Tampilkan loading
-          const originalText = btnDaftar.innerHTML;
-          btnDaftar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
-          btnDaftar.disabled = true;
-          
-          // 7. Submit form secara AJAX
-          submitFormAJAX(btnDaftar, originalText);
+            
+            // 4. Validasi minimal anggota
+            const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
+            if (anggotaCount < minAnggota) {
+                alert(`❌ Untuk lomba ${currentLomba}, minimal ${minAnggota} anggota tim!`);
+                return;
+            }
+            
+            // 5. Validasi semua input required
+            const requiredInputs = document.querySelectorAll('#formPendaftaran input[required], #formPendaftaran select[required]');
+            let semuaValid = true;
+            let firstInvalid = null;
+            
+            requiredInputs.forEach(input => {
+                if (!input.value.trim()) {
+                    semuaValid = false;
+                    input.style.borderColor = 'red';
+                    
+                    if (!firstInvalid) {
+                        firstInvalid = input;
+                    }
+                }
+            });
+            
+            if (!semuaValid) {
+                alert('❌ Harap isi semua data yang diperlukan!');
+                if (firstInvalid) {
+                    firstInvalid.focus();
+                }
+                return;
+            }
+            
+            // 6. Validasi format NIM (harus angka semua)
+            const nimValue = document.getElementById('nim').value;
+            if (!/^\d+$/.test(nimValue)) {
+                alert('❌ NIM harus berupa angka!');
+                document.getElementById('nim').focus();
+                return;
+            }
+            
+            // 7. Validasi format Nomor WA (harus angka semua)
+            const waValue = document.getElementById('wa').value;
+            if (!/^\d+$/.test(waValue)) {
+                alert('❌ Nomor WA harus berupa angka!');
+                document.getElementById('wa').focus();
+                return;
+            }
+            
+            // 8. Validasi NIM Anggota (harus angka semua)
+            const anggotaNimInputs = document.querySelectorAll('input[name="anggota_nim[]"]');
+            for (let i = 0; i < anggotaNimInputs.length; i++) {
+                const nimAnggota = anggotaNimInputs[i].value;
+                if (nimAnggota && !/^\d+$/.test(nimAnggota)) {
+                    alert(`❌ NIM Anggota ${i + 1} harus berupa angka!`);
+                    anggotaNimInputs[i].focus();
+                    return;
+                }
+            }
+            
+            // 9. Tampilkan loading
+            const originalText = btnDaftar.innerHTML;
+            btnDaftar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
+            btnDaftar.disabled = true;
+            
+            // 10. Submit form secara AJAX
+            submitFormAJAX(btnDaftar, originalText);
         });
-      }
-      
-      // Fungsi untuk submit form via AJAX
-      function submitFormAJAX(submitBtn, originalBtnText) {
+    }
+    
+    // Fungsi untuk submit form via AJAX
+    function submitFormAJAX(submitBtn, originalBtnText) {
         // Buat FormData dari form
         const form = document.getElementById('formPendaftaran');
         const formData = new FormData(form);
@@ -1079,69 +1193,68 @@
         // Debug: lihat data yang akan dikirim
         console.log('Data yang akan dikirim:');
         for (let [key, value] of formData.entries()) {
-          console.log(`${key}: ${value}`);
+            console.log(`${key}: ${value}`);
         }
         
         // Kirim via AJAX
         fetch('proses_daftar.php', {
-          method: 'POST',
-          body: formData
+            method: 'POST',
+            body: formData
         })
         .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.text();
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
         })
         .then(responseText => {
-          console.log('Response dari server:', responseText);
-          
-          // Coba parse JSON jika response adalah JSON
-          try {
-            const data = JSON.parse(responseText);
+            console.log('Response dari server:', responseText);
             
-            if (data.success) {
-              // Jika menggunakan JSON response
-              alert(`✅ Pendaftaran Berhasil!\n\nID Tim: ${data.id_tim}\nNama Tim: ${data.nama_tim}\nStatus: Menunggu Verifikasi`);
-              
-              // Redirect ke konfirmasi
-              setTimeout(() => {
-                window.location.href = 'konfirmasi.php?id=' + data.id_tim;
-              }, 1500);
-              
-            } else {
-              throw new Error(data.message || 'Gagal mendaftar');
+            // Coba parse JSON jika response adalah JSON
+            try {
+                const data = JSON.parse(responseText);
+                
+                if (data.success) {
+                    // Jika menggunakan JSON response
+                    alert(`✅ Pendaftaran Berhasil!\n\nID Tim: ${data.id_tim}\nNama Tim: ${data.nama_tim}\nStatus: Menunggu Verifikasi`);
+                    
+                    // Redirect ke konfirmasi
+                    setTimeout(() => {
+                        window.location.href = 'konfirmasi.php?id=' + data.id_tim;
+                    }, 1500);
+                    
+                } else {
+                    throw new Error(data.message || 'Gagal mendaftar');
+                }
+            } catch (e) {
+                // Jika response bukan JSON (mungkin langsung redirect)
+                console.log('Response bukan JSON, kemungkinan langsung redirect');
+                
+                // Tampilkan pesan sukses
+                alert('✅ Pendaftaran berhasil! Data sedang diproses...');
+                
+                // Submit form normal untuk redirect
+                setTimeout(() => {
+                    form.submit();
+                }, 1000);
             }
-          } catch (e) {
-            // Jika response bukan JSON (mungkin langsung redirect)
-            console.log('Response bukan JSON, kemungkinan langsung redirect');
-            
-            // Tampilkan pesan sukses
-            alert('✅ Pendaftaran berhasil! Data sedang diproses...');
-            
-            // Submit form normal untuk redirect
-            setTimeout(() => {
-              form.submit();
-            }, 1000);
-          }
         })
         .catch(error => {
-          console.error('Error:', error);
-          alert('❌ Gagal mendaftar: ' + error.message);
-          
-          // Reset tombol
-          submitBtn.innerHTML = originalBtnText;
-          submitBtn.disabled = false;
+            console.error('Error:', error);
+            alert('❌ Gagal mendaftar: ' + error.message);
+            
+            // Reset tombol
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
         });
-      }
-      
-      // Backup: Jika AJAX gagal, form bisa submit normal
-      document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
+    }
+    
+    // Backup: Jika AJAX gagal, form bisa submit normal
+    document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
         // Hanya prevent default jika tombol diklik via event listener di atas
         // Biarkan form submit normal jika tidak
-      });
-      
     });
+});
   </script>
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
