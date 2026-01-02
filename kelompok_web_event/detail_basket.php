@@ -390,7 +390,7 @@
     <main class="detail-container">
         <h2>Lomba Basket Mahasiswa</h2>
         <div style="text-align:center; padding:10px;">
-            <img src="/images/basket biru.webp" alt="Turnamen Basket"
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT57LUA8-w8P58mtbeKu1inhIRNUQrgNFHJhA&s" alt="Turnamen Basket"
                 style="display:block; margin:0 auto 20px auto; max-width:90%; height:auto; border-radius:10px;">
             <h3 style="margin-top:0; font-size:1.5rem; color:#007BFF;"></h3>
         </div>

@@ -387,7 +387,7 @@
                 <!-- Card 1 -->
                 <div class="col-md-4 white">
                     <div class="news-card">
-                        <img src="https://images.unsplash.com/photo-1535131749006-b7f58c99034b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTAWzu1-Gdudmb8GEKdDYPl6h6z4PJ1lbz5_w&s"
                             alt="Turnamen Bulutangkis">
                         <div class="card-body">
                             <div class="news-date"><i class="far fa-calendar-alt me-2"></i>15 Oktober 2025</div>
@@ -403,7 +403,7 @@
                 <!-- Card 2 -->
                 <div class="col-md-4">
                     <div class="news-card">
-                        <img src="https://images.unsplash.com/photo-1575361204480-aadea25e6e68?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80"
+                        <img src="https://d1vbn70lmn1nqe.cloudfront.net/prod/wp-content/uploads/2023/05/30084044/Teknik-Dasar-Olahraga-Futsal-dan-Beragam-Aturannya.jpg.webp"
                             alt="Kompetisi Futsal">
                         <div class="card-body">
                             <div class="news-date"><i class="far fa-calendar-alt me-2"></i>12 Oktober 2025</div>
@@ -419,7 +419,7 @@
                 <!-- Card 3 -->
                 <div class="col-md-4">
                     <div class="news-card">
-                        <img src="https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1490&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUhkXs-cRZSJwWrdAsEvKd4U1Q17ZbHfdutg&s"
                             alt="Liga Basket">
                         <div class="card-body">
                             <div class="news-date"><i class="far fa-calendar-alt me-2"></i>10 Oktober 2023</div>
@@ -443,44 +443,44 @@
                 <div class="slider-track">
                     <!-- Item 1 -->
                     <div class="slider-item">
-                        <img src="https://images.=80" alt="Kegiatan Kampus">
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgn82x4UtFJsMFce-bLCHGaM0pMhuReXyQDQ&s">
                     </div>
                     <!-- Item 2 -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://res.cloudinary.com/dk0z4ums3/image/upload/v1687743325/attached_image/7-manfaat-bulu-tangkis-untuk-kesehatan-tubuh.jpg"
                             alt="Seminar">
                     </div>
                     <!-- Item 3 -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://smkn9malang.sch.id/wp-content/uploads/2025/03/foot2.jpg"
                             alt="Workshop">
                     </div>
                     <!-- Item 4 -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQmtrUjHgbfLL-dPeCOdkcw9Ej0aOPXaNf0XQ&s"
                             alt="Olahraga">
                     </div>
                     <!-- Item 5 -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1471&q=80"
+                        <img src="https://asset.kompas.com/crops/A2DNrD6e27JAaq6-U0eom5Bwic4=/126x0:1000x583/1200x800/data/photo/2020/08/20/5f3e42f3b6023.jpg"
                             alt="Presentasi">
                     </div>
                     <!-- Item 6 -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQO-5Lj46dFOc6FxxtCl8R9ljounEg0U7Ifxg&s"
                             alt="Festival">
                     </div>
                     <!-- Duplikat untuk efek loop -->
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT1TmeKlDpcaaREOicdG6ucvyTHSz_L-Kuxzw&s"
                             alt="Kegiatan Kampus">
                     </div>
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQekQuokMRU8KtgHCnVqlReFeQm9RjV02AYuQ&s"
                             alt="Seminar">
                     </div>
                     <div class="slider-item">
-                        <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+                        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ5LU4Izs4qs4rJ36dw4n-nBSHRYEXO3dY2Dw&s"
                             alt="Workshop">
                     </div>
                 </div>

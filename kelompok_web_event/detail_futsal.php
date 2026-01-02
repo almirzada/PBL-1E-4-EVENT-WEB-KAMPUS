@@ -430,7 +430,7 @@
     <main class="detail-container">
         <h2>Lomba Futsal Mahasiswa</h2>
         <div style="text-align:center; padding:10px;">
-            <img src="/images/futsal biru.jpg" alt="Turnamen Futsal"
+            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTk5fHFJhhnuy6H3Hgrm3Yv9F0CPOxS5YCDiQ&s" alt="Turnamen Futsal"
                 style="display:block; margin:0 auto 20px auto; max-width:90%; height:auto; border-radius:10px;">
             <h3 style="margin-top:0; font-size:1.5rem; color:#007BFF;"></h3>
         </div>
