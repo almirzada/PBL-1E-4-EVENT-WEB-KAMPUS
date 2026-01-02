@@ -505,7 +505,7 @@
                         <li><a href="#">Beranda</a></li>
  
  
-                        <li><a href="/daftar">Pendaftaran</a></li>
+                        <li><a href="daftar.php">Pendaftaran</a></li>
  
                     </ul>
                 </div>
