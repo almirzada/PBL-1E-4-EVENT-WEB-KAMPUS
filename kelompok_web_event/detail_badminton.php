@@ -1,10 +1,42 @@
+<?php
+// detail_badminton.php - VERSI DINAMIS
+
+// 1. KONEKSI DATABASE
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "db_lomba";
+
+$conn = new mysqli($host, $user, $pass, $dbname);
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
+// 2. AMBIL DATA LOMBA BADMINTON
+$sql = "SELECT * FROM lomba_details WHERE jenis_lomba = 'Badminton'";
+$result = $conn->query($sql);
+
+if ($result->num_rows == 0) {
+    $judul_halaman = "Lomba Badminton Mahasiswa";
+    $konten_html = "<h2>Data lomba badminton belum tersedia</h2><p>Admin sedang menyiapkan konten...</p>";
+    $gambar_lomba = null;
+} else {
+    $detail = $result->fetch_assoc();
+    $judul_halaman = $detail['judul_halaman'];
+    $konten_html = $detail['konten_html'];
+    $gambar_lomba = $detail['gambar_lomba'] ?? null; // Ambil nama file gambar dari database
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="id">
- 
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Lomba Badminton - Politeknik Negeri Batam</title>
+    <title><?php echo htmlspecialchars($judul_halaman); ?> - Politeknik Negeri Batam</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -198,7 +230,7 @@
             background-color: #545b62;
         }
  
-        /* Footer - Diperbarui sesuai gambar (SAMA dengan basket) */
+        /* Footer */
         footer {
             background-color: #004aad;
             color: white;
@@ -361,10 +393,10 @@
 </head>
  
 <body>
-    <!-- Navbar - SAMA PERSIS dengan halaman basket -->
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="index.php">
                 <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png"
                     alt="Politeknik Negeri Batam">
             </a>
@@ -387,100 +419,29 @@
         </div>
     </nav>
  
-    <main class="detail-container">
-        <h2>Lomba Badminton Mahasiswa</h2>
+    <!-- ========== GAMBAR DARI DATABASE ========== -->
+    <div class="detail-container">
+        <h2><?php echo htmlspecialchars($judul_halaman); ?></h2>
+        
+        <!-- TAMPILKAN GAMBAR DARI DATABASE -->
         <div style="text-align:center; padding:10px;">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQJALYJkVAH-W7kRxZMGZyZpvYUDpmV_9myTA&s" alt="Turnamen Bulutangkis"
-                style="display:block; margin:0 auto 20px auto; max-width:90%; height:auto; border-radius:10px;">
-            <h3 style="margin-top:0; font-size:1.5rem; color:#007BFF;"></h3>
+            <?php if (!empty($gambar_lomba) && file_exists("uploads/" . $gambar_lomba)): ?>
+                <!-- Jika ada gambar di database dan file-nya ada di folder uploads -->
+                <img src="uploads/<?php echo htmlspecialchars($gambar_lomba); ?>" 
+                     alt="<?php echo htmlspecialchars($judul_halaman); ?>"
+                     class="detail-img">
+            <?php else: ?>
+                <!-- Gambar default jika tidak ada di database -->
+                <img src="https://images.unsplash.com/photo-1546519638-68e109498ffc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+                     alt="Lomba Badminton"
+                     class="detail-img">
+            <?php endif; ?>
         </div>
+        
+        <!-- KONTEN HTML DARI DATABASE -->
+        <?php echo $konten_html; ?>
+    </div>
 
-        <div class="detail-info">
-            <h3><i class="fas fa-table-tennis"></i> Bulu Tangkis</h3>
-
-            <p>
-                Lomba bulu tangkis antar jurusan Politeknik Negeri Batam ini jadi ajang seru buat nunjukin kelincahan,
-                strategi, dan kekompakan tiap pemain. Gak cuma soal smash atau drop shot, tapi juga soal gimana caranya
-                saling dukung, jaga sportivitas, dan tetap fokus di tengah tekanan pertandingan.
-            </p>
-            <p>
-                Event ini rutin diadain tiap tahun dan selalu dinanti karena suasananya rame, penuh semangat, dan bikin
-                deg-degan! Setiap tim bisa terdiri dari pemain tunggal dan ganda, jadi semua punya kesempatan buat unjuk
-                skill. Selain itu, lomba ini juga jadi wadah buat nambah pengalaman, relasi antarjurusan, dan pastinya
-                bikin kenangan yang gak bakal dilupain.
-            </p>
- 
-            <h3><i class="fas fa-bullseye"></i> Tujuan</h3>
-            <p>
-                Meningkatkan semangat kompetitif, mempererat kerja sama tim, dan menumbuhkan gaya hidup sehat di
-                kalangan mahasiswa. Selain itu, acara ini juga bertujuan untuk:
-            </p>
-            <ul>
-                <li>Membangun solidaritas antar jurusan lewat olahraga yang menyenangkan</li>
-                <li>Mengembangkan bakat dan minat mahasiswa di bidang bulu tangkis</li>
-                <li>Menyalurkan energi dan kreativitas lewat pertandingan yang sportif</li>
-                <li>Memperkenalkan bulu tangkis sebagai olahraga yang seru, sehat, dan bisa dinikmati semua kalangan
-                </li>
-            </ul>
-        </div>
- 
-        <!-- Rules Section -->
-        <section id="rules" class="rules-section">
-            <h3><i class="fas fa-clipboard-list"></i> Aturan Permainan</h3>
- 
-            <div class="rules-content">
-                <ol>
-                    <li><strong>Servis harus diagonal</strong> dari sisi kanan ke kanan lawan atau kiri ke kiri lawan.
-                    </li>
-                    <li><strong>Aturan Tinggi Servis:</strong> Pada saat servis, shuttlecock harus dipukul di bawah
-                        pinggang dan kepala raket mengarah ke bawah.</li>
-                    <li><strong>Lama Pertandingan:</strong> Pertandingan menggunakan sistem rally point 21. Best of 3
-                        set. Istirahat 60 detik saat interval 11 poin dan 2 menit antar set.</li>
-                    <li><strong>Lapangan & Shuttlecock:</strong> Shuttlecock harus sesuai standar (bulu atau sintetis).
-                        Garis samping ganda lebih lebar daripada tunggal.</li>
-                    <li><strong>Pelanggaran (Foul):</strong> Menyentuh net, memukul shuttlecock dua kali, atau
-                        shuttlecock keluar lapangan dianggap fault.</li>
-                    <li><strong>Net & Area Bermain:</strong> Pemain tidak boleh menyentuh net atau melangkah melewati
-                        garis tengah ke area lawan.</li>
-                    <li><strong>Servis Bergantian:</strong> Pergantian servis terjadi setiap kali pihak penerima
-                        memenangkan rally. Posisi kanan untuk angka genap, kiri untuk angka ganjil.</li>
-                    <li><strong>Rally:</strong> Rally berakhir saat shuttlecock jatuh di lantai, keluar, atau tersangkut
-                        net. Pemain yang menang rally mendapat 1 poin.</li>
-                    <li><strong>Fair Play:</strong> Pemain wajib bermain sportif, tidak mengganggu lawan, dan mengikuti
-                        keputusan wasit.</li>
-                    <li><strong>Pendaftaran & Perlengkapan:</strong> Pemain wajib menggunakan raket dan shuttlecock
-                        sesuai standar pertandingan, serta mendaftar sebelum waktu yang ditentukan.</li>
-                </ol>
-            </div>
-        </section>
- 
-        <div class="schedule-contact">
-            <div class="schedule-box">
-                <h3><i class="fas fa-calendar-alt"></i> Jadwal Pelaksanaan</h3>
-                <p><i class="fas fa-calendar-day"></i> <strong>Tanggal:</strong> 13 Januari 2026</p>
-                <p><i class="fas fa-clock"></i> <strong>Waktu:</strong> 08.00 - 17.00 WIB</p>
-                <p><i class="fas fa-map-marker-alt"></i> <strong>Tempat:</strong> GOR Garuda</p>
-                <p><i class="fas fa-user-plus"></i> <strong>Pendaftaran:</strong> 1 November - 5 Januari 2025</p>
-            </div>
- 
-            <div class="contact-box">
-                <h3><i class="fas fa-phone-alt"></i> Kontak Panitia</h3>
-                <p><i class="fas fa-user"></i> <strong>Reyvandito</strong></p>
-                <p><i class="fas fa-phone"></i> 0878-1355-9019</p>
-                <p><i class="fas fa-envelope"></i> Badminton.polibatam@email.com</p>
-                <p><i class="fas fa-map-marker-alt"></i> Gor Bulutangkis</p>
-            </div>
-        </div>
-
-        <div class="button-group">
-            <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
-            <button onclick="window.location.href='index.php'">
-                <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
-            </button>
-        </div>
-    </main>
-
-    <!-- Footer sesuai gambar dengan warna biru (SAMA dengan basket) -->
     <footer>
         <div class="footer-container">
             <div class="footer-top">
@@ -495,9 +456,7 @@
                 <div class="footer-links">
                     <h4>Tautan Cepat</h4>
                     <ul>
-                        <!-- Tautan Beranda -->
                         <li><a href="index.php" style="color: white;">Beranda</a></li>
-                        <!-- Tautan Pendaftaran -->
                         <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
                     </ul>
                 </div>
@@ -511,6 +470,35 @@
         </div>
     </footer>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const navLinks = document.querySelectorAll('nav a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            const buttons = document.querySelectorAll('.button-group button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+                    this.disabled = true;
+
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                    }, 1000);
+                });
+            });
+        });
+
+        function goBack() {
+            window.history.back();
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

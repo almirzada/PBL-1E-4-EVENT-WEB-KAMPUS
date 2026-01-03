@@ -1,14 +1,43 @@
+<?php
+// detail_basket.php - VERSI DINAMIS
+
+// 1. KONEKSI DATABASE
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "db_lomba";
+
+$conn = new mysqli($host, $user, $pass, $dbname);
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
+// 2. AMBIL DATA LOMBA BASKET
+$sql = "SELECT * FROM lomba_details WHERE jenis_lomba = 'Basket'";
+$result = $conn->query($sql);
+
+if ($result->num_rows == 0) {
+    $judul_halaman = "Lomba Basket Mahasiswa";
+    $konten_html = "<h2>Data lomba basket belum tersedia</h2><p>Admin sedang menyiapkan konten...</p>";
+} else {
+    $detail = $result->fetch_assoc();
+    $judul_halaman = $detail['judul_halaman'];
+    $konten_html = $detail['konten_html'];
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Berita Kampus - Politeknik Negeri Batam</title>
+    <title><?php echo htmlspecialchars($judul_halaman); ?> - Politeknik Negeri Batam</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Reset dan Base Styles */
         :root {
             --primary-color: #0056b3;
             --primary-dark: #003d82;
@@ -29,7 +58,6 @@
                     #ffffff 100%);
         }
 
-        /* Header & Navbar */
         .navbar {
             background-color: var(--primary-color);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -61,7 +89,6 @@
             height: 50px;
         }
 
-        /* Main Content */
         .detail-container {
             max-width: 800px;
             margin: 50px auto;
@@ -96,7 +123,6 @@
             margin-bottom: 10px;
         }
 
-        /* ====== Rules (Aturan) Section ====== */
         .rules-section {
             margin-top: 20px;
             background: #fff;
@@ -125,7 +151,6 @@
             color: #004aad;
         }
 
-        /* Schedule & Contact */
         .schedule-contact {
             display: flex;
             gap: 20px;
@@ -164,7 +189,6 @@
             width: 20px;
         }
 
-        /* Button Group */
         .button-group {
             display: flex;
             justify-content: center;
@@ -198,7 +222,6 @@
             background-color: #545b62;
         }
 
-        /* Footer - Diperbarui sesuai gambar */
         footer {
             background-color: #004aad;
             color: white;
@@ -282,7 +305,6 @@
             font-size: 0.9rem;
         }
 
-        /* Animations */
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -299,7 +321,6 @@
             animation: fadeIn 0.8s ease forwards;
         }
 
-        /* List styling */
         .detail-info ul {
             margin-left: 20px;
             margin-bottom: 20px;
@@ -311,7 +332,6 @@
             font-size: 1rem;
         }
 
-        /* Responsif untuk HP */
         @media (max-width: 768px) {
             .detail-container {
                 margin: 30px 15px;
@@ -361,10 +381,9 @@
 </head>
 
 <body>
-    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="index.php">
                 <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png"
                     alt="Politeknik Negeri Batam">
             </a>
@@ -387,103 +406,8 @@
         </div>
     </nav>
 
-    <main class="detail-container">
-        <h2>Lomba Basket Mahasiswa</h2>
-        <div style="text-align:center; padding:10px;">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT57LUA8-w8P58mtbeKu1inhIRNUQrgNFHJhA&s" alt="Turnamen Basket"
-                style="display:block; margin:0 auto 20px auto; max-width:90%; height:auto; border-radius:10px;">
-            <h3 style="margin-top:0; font-size:1.5rem; color:#007BFF;"></h3>
-        </div>
+    <?php echo $konten_html; ?>
 
-        <div class="detail-info">
-            <h3><i class="fas fa-basketball-ball"></i> Basket</h3>
-            <p>
-                Lomba basket antar jurusan Polibatam ini jadi ajang paling ditunggu tiap tahunnya buat nunjukin siapa
-                yang paling solid dan kompak di lapangan! Nggak cuma soal ngejar poin dan nge-dunk kece, tapi juga soal kerja
-                sama, strategi, dan kekompakan tim dari awal sampai peluit akhir.
-            </p>
-            <p>
-                Suasana pertandingan dijamin seru banget — teriakan supporter, dentuman bola ke lantai, dan semangat
-                juang dari tiap pemain bikin atmosfer lapangan makin panas! Tiap jurusan wajib punya tim terbaiknya, dan siapa
-                pun bisa jadi bintang kalau punya mental kuat dan kerja sama yang solid.
-            </p>
-            <p>
-                Event ini juga bukan cuma tentang menang atau kalah, tapi soal kebersamaan, sportivitas, dan gimana
-                caranya bisa nunjukin semangat mahasiswa Polibatam yang nggak gampang nyerah. Jadi, siapin jersey terbaikmu,
-                latih dribble dan shooting-mu, karena di sinilah tempat buat buktiin skill-mu di lapangan basket Polibatam!
-                🏀🔥
-            </p>
-
-            <h3><i class="fas fa-bullseye"></i> Tujuan</h3>
-            <p>
-                Meningkatkan semangat sportivitas dan kerja sama tim antar mahasiswa. Selain itu, acara ini juga
-                bertujuan untuk:
-            </p>
-            <ul>
-                <li>Melatih fokus, strategi, dan ketahanan fisik lewat permainan kompetitif</li>
-                <li>Membangun solidaritas antar jurusan lewat kompetisi yang positif dan menyenangkan</li>
-                <li>Menjadi ajang menyalurkan hobi dan bakat di bidang olahraga basket</li>
-                <li>Mengembangkan karakter kepemimpinan dan kerja sama dalam tim</li>
-            </ul>
-        </div>
-
-        <!-- Rules Section -->
-        <section id="rules" class="rules-section">
-            <h3><i class="fas fa-clipboard-list"></i> Aturan Permainan</h3>
-
-            <div class="rules-content">
-                <ol>
-                    <li><strong>Jumlah Pemain:</strong> Setiap tim terdiri dari 5 pemain inti dan maksimal 5 pemain
-                        cadangan. Minimal 3 pemain harus ada di lapangan untuk melanjutkan pertandingan.</li>
-                    <li><strong>Durasi Pertandingan:</strong> Pertandingan berlangsung 4 babak × 10 menit waktu kotor.
-                        Istirahat antar babak selama 2 menit, dan 5 menit di antara babak kedua dan ketiga.</li>
-                    <li><strong>Pergantian Pemain:</strong> Pergantian pemain bisa dilakukan kapan saja saat bola mati
-                        dengan izin wasit.</li>
-                    <li><strong>Pelanggaran (Foul):</strong> Setiap pemain hanya boleh melakukan 5 pelanggaran pribadi.
-                        Setelah tim melakukan 5 pelanggaran dalam satu babak, tim lawan mendapatkan free throw.</li>
-                    <li><strong>Three-Point Line:</strong> Poin dihitung 3 jika bola masuk dari luar garis 3 poin, 2
-                        poin dari dalam area, dan free throw bernilai 1 poin.</li>
-                    <li><strong>Waktu Serangan (Shot Clock):</strong> Setiap tim punya waktu 24 detik buat nyerang dan
-                        melakukan tembakan. Kalau bola nggak kena ring dalam waktu itu, bola beralih ke lawan.</li>
-                    <li><strong>Overtime:</strong> Kalau skor seri di akhir pertandingan, akan ada perpanjangan waktu 5
-                        menit.</li>
-                    <li><strong>Fair Play:</strong> Dilarang melakukan provokasi, adu mulut, atau tindakan kasar. Pemain
-                        wajib menghormati keputusan wasit.</li>
-                    <li><strong>Perlengkapan Wajib:</strong> Semua pemain harus memakai jersey bernomor, sepatu basket,
-                        dan pelindung lutut (opsional).</li>
-                    <li><strong>Penentuan Pemenang:</strong> Pemenang ditentukan dari skor tertinggi di akhir
-                        pertandingan atau perpanjangan waktu.</li>
-                </ol>
-            </div>
-        </section>
-
-        <div class="schedule-contact">
-            <div class="schedule-box">
-                <h3><i class="fas fa-calendar-alt"></i> Jadwal Pelaksanaan</h3>
-                <p><i class="fas fa-calendar-day"></i> <strong>Tanggal:</strong> 13 Desember 2025</p>
-                <p><i class="fas fa-clock"></i> <strong>Waktu:</strong> 08.00 - 17.00 WIB</p>
-                <p><i class="fas fa-map-marker-alt"></i> <strong>Tempat:</strong> Lapangan Basket Polibatam</p>
-                <p><i class="fas fa-user-plus"></i> <strong>Pendaftaran:</strong> 1 November - 5 Desember 2025</p>
-            </div>
-
-            <div class="contact-box">
-                <h3><i class="fas fa-phone-alt"></i> Kontak Panitia</h3>
-                <p><i class="fas fa-user"></i> <strong>Amadeo Duscha Roberd</strong></p>
-                <p><i class="fas fa-phone"></i> 0878-1355-90178</p>
-                <p><i class="fas fa-envelope"></i> basket.polibatam@email.com</p>
-                <p><i class="fas fa-map-marker-alt"></i> Gedung Olahraga Polibatam</p>
-            </div>
-        </div>
-
-        <div class="button-group">
-            <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
-            <button onclick="window.location.href='index.php'">
-                <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
-            </button>
-        </div>
-    </main>
-
-    <!-- Footer sesuai gambar dengan warna biru -->
     <footer>
         <div class="footer-container">
             <div class="footer-top">
@@ -498,9 +422,7 @@
                 <div class="footer-links">
                     <h4>Tautan Cepat</h4>
                     <ul>
-                        <!-- Tautan Beranda -->
                         <li><a href="index.php" style="color: white;">Beranda</a></li>
-                        <!-- Tautan Pendaftaran -->
                         <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
                     </ul>
                 </div>
@@ -514,7 +436,35 @@
         </div>
     </footer>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const navLinks = document.querySelectorAll('nav a');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            const buttons = document.querySelectorAll('.button-group button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function () {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+                    this.disabled = true;
+
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.disabled = false;
+                    }, 1000);
+                });
+            });
+        });
+
+        function goBack() {
+            window.history.back();
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>

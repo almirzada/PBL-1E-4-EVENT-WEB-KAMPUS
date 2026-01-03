@@ -1,14 +1,46 @@
+<?php
+// detail_futsal.php - VERSI DINAMIS
+
+// 1. KONEKSI DATABASE
+$host = "localhost";
+$user = "root";
+$pass = "";
+$dbname = "db_lomba";
+
+$conn = new mysqli($host, $user, $pass, $dbname);
+if ($conn->connect_error) {
+    die("Koneksi gagal: " . $conn->connect_error);
+}
+
+// 2. AMBIL DATA LOMBA FUTSAL
+$sql = "SELECT * FROM lomba_details WHERE jenis_lomba = 'Futsal'";
+$result = $conn->query($sql);
+
+if ($result->num_rows == 0) {
+    // Jika belum ada data, buat default
+    $judul_halaman = "Lomba Futsal Mahasiswa";
+    $konten_html = "<h2>Data lomba belum tersedia</h2><p>Admin sedang menyiapkan konten...</p>";
+} else {
+    $detail = $result->fetch_assoc();
+    $judul_halaman = $detail['judul_halaman'];
+    $konten_html = $detail['konten_html'];
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Berita Kampus - Politeknik Negeri Batam</title>
+    <!-- JUDUL DINAMIS DARI DATABASE -->
+    <title><?php echo htmlspecialchars($judul_halaman); ?> - Politeknik Negeri Batam</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Reset dan Base Styles */
+        /* SAMA PERSIS DENGAN CSS FILE LAMA */
         :root {
             --primary-color: #0056b3;
             --primary-dark: #003d82;
@@ -27,34 +59,6 @@
             background: linear-gradient(to bottom,
                     #f0f1f3ff 80%,
                     #ffffff 100%);
-        }
-
-        /* Header & Navbar */
-        .navbar {
-            background-color: var(--primary-color);
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .navbar-nav .nav-link {
-            position: relative;
-            padding-bottom: 6px;
-        }
-
-        .navbar-nav .nav-link::after {
-            content: "";
-            position: absolute;
-            left: 50%;
-            bottom: 0;
-            width: 0;
-            height: 2px;
-            background-color: #ffffffff;
-            transition: all 0.3s ease;
-            transform: translateX(-50%);
-        }
-
-        .navbar-nav .nav-link:hover::after,
-        .navbar-nav .nav-link.active::after {
-            width: 100%;
         }
 
         .navbar {
@@ -225,7 +229,7 @@
             background-color: #545b62;
         }
 
-        /* Footer - Diperbarui sesuai gambar */
+        /* Footer */
         footer {
             background-color: #004aad;
             color: white;
@@ -340,19 +344,6 @@
 
         /* Responsif untuk HP */
         @media (max-width: 768px) {
-            header {
-                padding: 10px 25px;
-            }
-
-            nav a {
-                margin-left: 15px;
-                font-size: 14px;
-            }
-
-            .logo img {
-                width: 50px;
-            }
-
             .detail-container {
                 margin: 30px 15px;
                 padding: 20px;
@@ -389,7 +380,8 @@
                 gap: 30px;
             }
 
-            .footer-info, .footer-links {
+            .footer-info,
+            .footer-links {
                 width: 100%;
             }
 
@@ -401,10 +393,10 @@
 </head>
 
 <body>
-    <!-- Navbar -->
+    <!-- Navbar (SAMA) -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="#">
+            <a class="navbar-brand" href="index.php">
                 <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png"
                     alt="Politeknik Negeri Batam">
             </a>
@@ -415,110 +407,22 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="index.php">Beranda</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="daftar.php">Pendaftaran</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="admin/login.php">Admin</a>
-                    </li>
-
                     </li>
                 </ul>
             </div>
         </div>
     </nav>
 
-    <main class="detail-container">
-        <h2>Lomba Futsal Mahasiswa</h2>
-        <div style="text-align:center; padding:10px;">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTk5fHFJhhnuy6H3Hgrm3Yv9F0CPOxS5YCDiQ&s" alt="Turnamen Futsal"
-                style="display:block; margin:0 auto 20px auto; max-width:90%; height:auto; border-radius:10px;">
-            <h3 style="margin-top:0; font-size:1.5rem; color:#007BFF;"></h3>
-        </div>
+    <!-- KONTEN UTAMA DINAMIS DARI DATABASE -->
+    <?php echo $konten_html; ?>
 
-        <div class="detail-info">
-            <h3><i class="fas fa-futbol text-primary"></i> Futsal</h3>
-            <p>
-                Lomba futsal antar jurusan Politeknik Negeri Batam ini jadi ajang seru buat nunjukin semangat, skill,
-                dan kekompakan tiap jurusan. Gak cuma soal menang atau kalah, tapi juga soal gimana caranya kerja bareng
-                satu tim, saling dukung, dan jaga sportivitas.
-            </p>
-            <p>
-                Event ini diadain tiap tahun dan selalu jadi momen yang ditunggu mahasiswa karena suasananya rame, seru,
-                dan penuh energi positif!
-                Setiap tim wajib punya formasi lengkap maksimal 10 pemain (termasuk kapten), jadi semua bisa dapet
-                giliran buat turun ke lapangan. Selain itu, lomba ini juga bisa jadi wadah buat nyari pengalaman baru,
-                nambah relasi antarjurusan, dan pastinya bikin kenangan yang gak bakal dilupain.
-            </p>
-
-            <h3><i class="fas fa-bullseye"></i> Tujuan</h3>
-            <p>
-                Meningkatkan semangat kompetitif, mempererat kerja sama tim, dan menumbuhkan
-                gaya hidup sehat di kalangan mahasiswa. Selain itu, acara ini juga bertujuan untuk:
-            </p>
-            <ul style="margin-left: 20px; margin-bottom: 20px; color: #333;">
-                <li>Membangun solidaritas antar jurusan di lingkungan kampus</li>
-                <li>Mengembangkan bakat dan minat mahasiswa di bidang olahraga</li>
-                <li>Menciptakan wadah positif untuk menyalurkan energi dan kreativitas mahasiswa</li>
-                <li>Memperkenalkan olahraga futsal sebagai aktivitas yang menyenangkan dan menyehatkan</li>
-            </ul>
-        </div>
-
-        <!-- Rules Section -->
-        <section id="rules" class="rules-section">
-            <h3><i class="fas fa-clipboard-list"></i> Aturan Permainan</h3>
-
-            <div class="rules-content">
-                <ol>
-                    <li><strong>Jumlah Pemain:</strong> Tiap tim maksimal 10 pemain (5 pemain inti + 5 cadangan(minimal
-                        2 cadangan)). Minimal 3 pemain di lapangan.</li>
-                    <li><strong>Safety:</strong> Setiap pemain wajib menggunakan dua pasang deker dan sepatu futsal yang
-                        sesuai standar keamanan.</li>
-                    <li><strong>Lama Pertandingan:</strong> 2 × 10 menit waktu kotor. Istirahat 5 menit antar babak.
-                    </li>
-                    <li><strong>Gawang & Bola:</strong> Ukuran gawang 3m × 2m. Bola nomor 4 dengan pantulan kecil.</li>
-                    <li><strong>Pelanggaran (Foul):</strong> Tarik kaos, senggolan berbahaya, atau tangan (kecuali
-                        kiper) dihitung foul. Setelah 5 foul, tim lawan mendapat tendangan bebas tanpa pagar.</li>
-                    <li><strong>Kiper:</strong> Kiper hanya boleh memegang bola di area gawangnya.</li>
-                    
-                        gawangnya.</li>
-                    <li><strong>Restart:</strong> Kick-in untuk bola keluar samping; corner untuk bola kena pemain
-                        bertahan; goal kick untuk gol sendiri.</li>
-                    <li><strong>Kartu & Sanksi:</strong> Kartu kuning peringatan; kartu merah keluarkan pemain dan tim
-                        main dengan jumlah berkurang sesuai ketentuan sementara.</li>
-                    <li><strong>Fair Play:</strong> Jaga sportivitas. Keputusan wasit bersifat final.</li>
-                    <li><strong>Pendaftaran:</strong> Setiap tim wajib mendaftarkan diri sebelum batas waktu yang
-                        ditentukan dengan melengkapi semua persyaratan.</li>
-                </ol>
-            </div>
-        </section>
-
-        <div class="schedule-contact">
-            <div class="schedule-box">
-                <h3><i class="fas fa-calendar-alt"></i> Jadwal Pelaksanaan</h3>
-                <p><i class="fas fa-calendar-day"></i> <strong>Tanggal:</strong> 13 Desember 2025</p>
-                <p><i class="fas fa-clock"></i> <strong>Waktu:</strong> 08.00 - 17.00 WIB</p>
-                <p><i class="fas fa-map-marker-alt"></i> <strong>Tempat:</strong> Lapangan Futsal Polibatam</p>
-                <p><i class="fas fa-user-plus"></i> <strong>Pendaftaran:</strong> 1 November - 5 Desember 2025</p>
-            </div>
-
-            <div class="contact-box">
-                <h3><i class="fas fa-phone-alt"></i> Kontak Panitia</h3>
-                <p><i class="fas fa-user"></i> <strong>Reyvandito</strong></p>
-                <p><i class="fas fa-phone"></i> 0878-1355-9019</p>
-                <p><i class="fas fa-envelope"></i> futsal.polibatam@email.com</p>
-                <p><i class="fas fa-map-marker-alt"></i> Gedung Olahraga Polibatam</p>
-            </div>
-        </div>
-
-        <div class="button-group">
-            <button onclick="window.location.href='daftar.php'"><i class="fas fa-user-plus"></i> Daftar Sekarang</button>
-            <button onclick="window.location.href='index.php'">
-                <i class="fas fa-arrow-left"></i> Kembali ke Daftar Lomba
-            </button>
-        </div>
-    </main>
-
-    <!-- Footer sesuai gambar dengan warna biru -->
+    <!-- Footer -->
     <footer>
         <div class="footer-container">
             <div class="footer-top">
@@ -533,9 +437,7 @@
                 <div class="footer-links">
                     <h4>Tautan Cepat</h4>
                     <ul>
-                        <!-- Tautan Beranda -->
                         <li><a href="index.php" style="color: white;">Beranda</a></li>
-                        <!-- Tautan Pendaftaran -->
                         <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
                     </ul>
                 </div>
@@ -550,29 +452,23 @@
     </footer>
 
     <script>
-        // Fungsi untuk navigasi yang lebih smooth
+        // JavaScript yang sama
         document.addEventListener('DOMContentLoaded', function () {
-            // Tambahkan event listener untuk semua link navbar
             const navLinks = document.querySelectorAll('nav a');
             navLinks.forEach(link => {
                 link.addEventListener('click', function (e) {
-                    // Hapus kelas active dari semua link
                     navLinks.forEach(l => l.classList.remove('active'));
-                    // Tambahkan kelas active ke link yang diklik
                     this.classList.add('active');
                 });
             });
 
-            // Tambahkan efek loading untuk tombol
             const buttons = document.querySelectorAll('.button-group button');
             buttons.forEach(button => {
                 button.addEventListener('click', function () {
-                    // Tambahkan efek loading sementara
                     const originalText = this.innerHTML;
                     this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
                     this.disabled = true;
 
-                    // Simulasi loading sebelum navigasi
                     setTimeout(() => {
                         this.innerHTML = originalText;
                         this.disabled = false;
@@ -581,11 +477,9 @@
             });
         });
 
-        // Fungsi untuk kembali ke halaman sebelumnya
         function goBack() {
             window.history.back();
         }
     </script>
 </body>
-
 </html>

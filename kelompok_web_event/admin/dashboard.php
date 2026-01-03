@@ -630,9 +630,17 @@ $result_rejected = $conn->query($sql_rejected);
                         <i class="fas fa-cog"></i> Pengaturan
                     </a>
                     <?php endif; ?>
-                    <a href="export_excel.php" class="add-btn" style="background: linear-gradient(to right, #28a745, #20c997);">
-                        <i class="fas fa-file-excel"></i> Export Excel
-                    </a>
+                    <!-- TOMBOL EDIT DETAIL LOMBA -->
+<a href="edit_detail.php?jenis=Futsal" class="add-btn" style="background: linear-gradient(to right, #1e88e5, #1565c0);">
+    <i class="fas fa-futbol"></i> Edit Futsal
+</a>
+<a href="edit_detail.php?jenis=Basket" class="add-btn" style="background: linear-gradient(to right, #e53935, #c62828);">
+    <i class="fas fa-basketball-ball"></i> Edit Basket
+</a>
+<a href="edit_detail.php?jenis=Badminton" class="add-btn" style="background: linear-gradient(to right, #43a047, #2e7d32);">
+    <i class="fas fa-table-tennis"></i> Edit Badminton
+</a>
+                    
                 </div>
             </div>
 

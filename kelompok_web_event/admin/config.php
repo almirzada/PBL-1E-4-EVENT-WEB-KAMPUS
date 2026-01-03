@@ -1,6 +1,6 @@
 <?php
 // config.php - Ambil semua pengaturan sistem
-session_start();
+
 
 // KONEKSI DATABASE
 $host = "localhost";
