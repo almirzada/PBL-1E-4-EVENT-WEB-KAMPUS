@@ -228,8 +228,8 @@ HTML;
             padding-bottom: 10px;
             margin-bottom: 20px;
         }
-        .badge-futsal { background: #1e88e5; }
-        .badge-basket { background: #e53935; }
+        .badge-futsal  { background: #43a047; }
+        .badge-basket  { background: #43a047; }
         .badge-badminton { background: #43a047; }
         .preview-card {
             background: #f8f9fa;

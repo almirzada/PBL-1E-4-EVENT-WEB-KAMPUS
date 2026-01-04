@@ -30,13 +30,13 @@ $level = $_SESSION['level'] ?? 'admin';
 // ================================================
 if (isset($_GET['hapus_tim'])) {
     $id_hapus = intval($_GET['hapus_tim']);
-    
+
     // Hapus anggota terlebih dahulu
     $delete_anggota = $conn->query("DELETE FROM anggota_tim WHERE id_tim = $id_hapus");
-    
+
     // Hapus tim
     $delete_tim = $conn->query("DELETE FROM tim_lomba WHERE id_tim = $id_hapus");
-    
+
     if ($delete_tim) {
         $_SESSION['alert_message'] = "✅ Tim berhasil dihapus permanen!";
         $_SESSION['alert_type'] = 'success';
@@ -44,7 +44,7 @@ if (isset($_GET['hapus_tim'])) {
         $_SESSION['alert_message'] = "❌ Gagal menghapus tim: " . $conn->error;
         $_SESSION['alert_type'] = 'error';
     }
-    
+
     // Redirect ke dashboard untuk refresh data
     header("Location: dashboard.php");
     exit();
@@ -81,10 +81,16 @@ $result_rejected = $conn->query($sql_rejected);
 ?>
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Admin - Data Tim Lomba</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
+        @import url('https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css');
+    </style>
     <style>
         /* RESET & BASE */
         * {
@@ -272,8 +278,13 @@ $result_rejected = $conn->query($sql_rejected);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         /* TABLE SECTION */
@@ -294,7 +305,7 @@ $result_rejected = $conn->query($sql_rejected);
         }
 
         .add-btn {
-            background: linear-gradient(to right, #28a745, #20c997);
+            background: #1e88e5;
             color: white;
             padding: 12px 25px;
             border-radius: 10px;
@@ -405,7 +416,12 @@ $result_rejected = $conn->query($sql_rejected);
             gap: 8px;
         }
 
-        .btn-view, .btn-verify, .btn-reject, .btn-edit, .btn-delete, .btn-restore {
+        .btn-view,
+        .btn-verify,
+        .btn-reject,
+        .btn-edit,
+        .btn-delete,
+        .btn-restore {
             padding: 8px 15px;
             border-radius: 8px;
             text-decoration: none;
@@ -449,8 +465,12 @@ $result_rejected = $conn->query($sql_rejected);
             color: white;
         }
 
-        .btn-view:hover, .btn-verify:hover, .btn-reject:hover, 
-        .btn-edit:hover, .btn-delete:hover, .btn-restore:hover {
+        .btn-view:hover,
+        .btn-verify:hover,
+        .btn-reject:hover,
+        .btn-edit:hover,
+        .btn-delete:hover,
+        .btn-restore:hover {
             transform: translateY(-2px);
             filter: brightness(110%);
         }
@@ -495,7 +515,7 @@ $result_rejected = $conn->query($sql_rejected);
             top: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             align-items: center;
             justify-content: center;
         }
@@ -527,7 +547,7 @@ $result_rejected = $conn->query($sql_rejected);
                 gap: 20px;
                 text-align: center;
             }
-            
+
             .stats-container {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -542,7 +562,7 @@ $result_rejected = $conn->query($sql_rejected);
             .stats-container {
                 grid-template-columns: 1fr;
             }
-            
+
             .table-section {
                 padding: 20px;
             }
@@ -553,6 +573,7 @@ $result_rejected = $conn->query($sql_rejected);
         }
     </style>
 </head>
+
 <body>
     <div class="dashboard-container">
         <!-- HEADER -->
@@ -567,7 +588,7 @@ $result_rejected = $conn->query($sql_rejected);
                 </div>
                 <div class="user-info">
                     <div class="user-avatar">
-                        <?php 
+                        <?php
                         // Avatar berbeda untuk super_admin vs admin biasa
                         if ($level === 'super_admin') {
                             echo '👑'; // Crown untuk super admin
@@ -622,25 +643,25 @@ $result_rejected = $conn->query($sql_rejected);
                 <h2>📋 Data Tim Lomba</h2>
                 <div style="display: flex; gap: 10px;">
                     <?php if ($level === 'super_admin'): ?>
-                    <!-- Menu khusus untuk Super Admin -->
-                    <a href="manajemen_user.php" class="add-btn" style="background: linear-gradient(to right, #ff9800, #ff5722);">
-                        <i class="fas fa-users-cog"></i> Kelola User
-                    </a>
-                    <a href="pengaturan.php" class="add-btn" style="background: linear-gradient(to right, #9c27b0, #673ab7);">
-                        <i class="fas fa-cog"></i> Pengaturan
-                    </a>
+                        <!-- Menu khusus untuk Super Admin -->
+                        <a href="manajemen_user.php" class="add-btn">
+                            <i class="fas bi bi-person"></i> Kelola User
+                        </a>
+                        <a href="pengaturan.php" class="add-btn">
+                            <i class="fas fa-cog"></i> Pengaturan
+                        </a>
                     <?php endif; ?>
                     <!-- TOMBOL EDIT DETAIL LOMBA -->
-<a href="edit_detail.php?jenis=Futsal" class="add-btn" style="background: linear-gradient(to right, #1e88e5, #1565c0);">
-    <i class="fas fa-futbol"></i> Edit Futsal
-</a>
-<a href="edit_detail.php?jenis=Basket" class="add-btn" style="background: linear-gradient(to right, #e53935, #c62828);">
-    <i class="fas fa-basketball-ball"></i> Edit Basket
-</a>
-<a href="edit_detail.php?jenis=Badminton" class="add-btn" style="background: linear-gradient(to right, #43a047, #2e7d32);">
-    <i class="fas fa-table-tennis"></i> Edit Badminton
-</a>
-                    
+                    <a href="edit_detail.php?jenis=Futsal" class="add-btn" >
+                        <i class="fas fa-futbol"></i> Edit Futsal
+                    </a>
+                    <a href="edit_detail.php?jenis=Basket" class="add-btn" >
+                        <i class="fas fa-basketball-ball"></i> Edit Basket
+                    </a>
+                    <a href="edit_detail.php?jenis=Badminton" class="add-btn">
+                        <i class="fas fa-table-tennis"></i> Edit Badminton
+                    </a>
+
                 </div>
             </div>
 
@@ -660,196 +681,196 @@ $result_rejected = $conn->query($sql_rejected);
             <!-- TAB 1: PENDING -->
             <div id="tab-pending" class="tab-content active">
                 <?php if ($result_pending->num_rows > 0): ?>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nama Tim</th>
-                                <th>Jenis Lomba</th>
-                                <th>Ketua Tim</th>
-                                <th>Jumlah Anggota</th>
-                                <th>Tanggal Daftar</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while($row = $result_pending->fetch_assoc()): 
-                                $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                            ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                <td>
-                                    <span class="badge-lomba <?php echo $badge_class; ?>">
-                                        <?php echo $row['jenis_lomba']; ?>
-                                    </span>
-                                </td>
-                                <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
-                                <td>
-                                    <div class="action-btns">
-                                        <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                            👁️ Detail
-                                        </button>
-                                        <a href="verifikasi.php?action=terima&id=<?php echo $row['id_tim']; ?>" 
-                                           class="btn-verify" 
-                                           onclick="return confirm('Terima tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                            ✅ Terima
-                                        </a>
-                                        <a href="verifikasi.php?action=tolak&id=<?php echo $row['id_tim']; ?>" 
-                                           class="btn-reject"
-                                           onclick="return confirm('Tolak tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                            ❌ Tolak
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama Tim</th>
+                                    <th>Jenis Lomba</th>
+                                    <th>Ketua Tim</th>
+                                    <th>Jumlah Anggota</th>
+                                    <th>Tanggal Daftar</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($row = $result_pending->fetch_assoc()):
+                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
+                                ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
+                                        <td>
+                                            <span class="badge-lomba <?php echo $badge_class; ?>">
+                                                <?php echo $row['jenis_lomba']; ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
+                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
+                                        <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
+                                        <td>
+                                            <div class="action-btns">
+                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
+                                                    👁️ Detail
+                                                </button>
+                                                <a href="verifikasi.php?action=terima&id=<?php echo $row['id_tim']; ?>"
+                                                    class="btn-verify"
+                                                    onclick="return confirm('Terima tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
+                                                    ✅ Terima
+                                                </a>
+                                                <a href="verifikasi.php?action=tolak&id=<?php echo $row['id_tim']; ?>"
+                                                    class="btn-reject"
+                                                    onclick="return confirm('Tolak tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
+                                                    ❌ Tolak
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php else: ?>
-                <div class="no-data">
-                    <div class="no-data-icon">📭</div>
-                    <h3>Tidak ada tim yang menunggu verifikasi</h3>
-                    <p>Semua tim sudah diproses.</p>
-                </div>
+                    <div class="no-data">
+                        <div class="no-data-icon">📭</div>
+                        <h3>Tidak ada tim yang menunggu verifikasi</h3>
+                        <p>Semua tim sudah diproses.</p>
+                    </div>
                 <?php endif; ?>
             </div>
 
             <!-- TAB 2: VERIFIED -->
             <div id="tab-verified" class="tab-content">
                 <?php if ($result_verified->num_rows > 0): ?>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nama Tim</th>
-                                <th>Jenis Lomba</th>
-                                <th>Ketua Tim</th>
-                                <th>No. WA</th>
-                                <th>Jumlah Anggota</th>
-                                <th>Tanggal Verifikasi</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while($row = $result_verified->fetch_assoc()): 
-                                $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                            ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                <td>
-                                    <span class="badge-lomba <?php echo $badge_class; ?>">
-                                        <?php echo $row['jenis_lomba']; ?>
-                                    </span>
-                                </td>
-                                <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                <td>
-                                    <?php if (!empty($row['no_wa'])): ?>
-                                    <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $row['no_wa']); ?>" 
-                                       target="_blank" 
-                                       style="color: #25D366; text-decoration: none;">
-                                       📱 <?php echo htmlspecialchars($row['no_wa']); ?>
-                                    </a>
-                                    <?php else: ?>
-                                    <span style="color: #999;">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                <td>
-                                    <?php if ($row['tanggal_daftar']): ?>
-                                    <?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?>
-                                    <?php else: ?>
-                                    <span style="color: #999;">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <div class="action-btns">
-                                        <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                            👁️ Detail
-                                        </button>
-                                        <a href="edit_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-edit">
-                                            ✏️ Edit
-                                        </a>
-                                        <a href="javascript:void(0);" 
-                                           class="btn-delete"
-                                           onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-                                            🗑️ Hapus
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama Tim</th>
+                                    <th>Jenis Lomba</th>
+                                    <th>Ketua Tim</th>
+                                    <th>No. WA</th>
+                                    <th>Jumlah Anggota</th>
+                                    <th>Tanggal Verifikasi</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($row = $result_verified->fetch_assoc()):
+                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
+                                ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
+                                        <td>
+                                            <span class="badge-lomba <?php echo $badge_class; ?>">
+                                                <?php echo $row['jenis_lomba']; ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
+                                        <td>
+                                            <?php if (!empty($row['no_wa'])): ?>
+                                                <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $row['no_wa']); ?>"
+                                                    target="_blank"
+                                                    style="color: #25D366; text-decoration: none;">
+                                                    📱 <?php echo htmlspecialchars($row['no_wa']); ?>
+                                                </a>
+                                            <?php else: ?>
+                                                <span style="color: #999;">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
+                                        <td>
+                                            <?php if ($row['tanggal_daftar']): ?>
+                                                <?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?>
+                                            <?php else: ?>
+                                                <span style="color: #999;">-</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <div class="action-btns">
+                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
+                                                    👁️ Detail
+                                                </button>
+                                                <a href="edit_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-edit">
+                                                    ✏️ Edit
+                                                </a>
+                                                <a href="javascript:void(0);"
+                                                    class="btn-delete"
+                                                    onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+                                                    🗑️ Hapus
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php else: ?>
-                <div class="no-data">
-                    <div class="no-data-icon">✅</div>
-                    <h3>Belum ada tim yang aktif</h3>
-                    <p>Verifikasi tim dari tab "Pending" untuk menampilkan di sini.</p>
-                </div>
+                    <div class="no-data">
+                        <div class="no-data-icon">✅</div>
+                        <h3>Belum ada tim yang aktif</h3>
+                        <p>Verifikasi tim dari tab "Pending" untuk menampilkan di sini.</p>
+                    </div>
                 <?php endif; ?>
             </div>
 
             <!-- TAB 3: REJECTED -->
             <div id="tab-rejected" class="tab-content">
                 <?php if ($result_rejected->num_rows > 0): ?>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Nama Tim</th>
-                                <th>Jenis Lomba</th>
-                                <th>Ketua Tim</th>
-                                <th>Jumlah Anggota</th>
-                                <th>Tanggal Daftar</th>
-                                <th>Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php while($row = $result_rejected->fetch_assoc()): 
-                                $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                            ?>
-                            <tr>
-                                <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                <td>
-                                    <span class="badge-lomba <?php echo $badge_class; ?>">
-                                        <?php echo $row['jenis_lomba']; ?>
-                                    </span>
-                                </td>
-                                <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
-                                <td>
-                                    <div class="aksi-buttons">
-                                        <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                            👁️ Detail
-                                        </button>
-                                        <a href="verifikasi.php?action=restore&id=<?php echo $row['id_tim']; ?>" 
-                                           class="btn-restore"
-                                           onclick="return confirm('Kembalikan tim <?php echo htmlspecialchars($row['nama_tim']); ?> ke pending?')">
-                                            🔄 Restore
-                                        </a>
-                                        <a href="javascript:void(0);" 
-                                           class="btn-delete"
-                                           onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-                                            🗑️ Hapus
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <?php endwhile; ?>
-                        </tbody>
-                    </table>
-                </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nama Tim</th>
+                                    <th>Jenis Lomba</th>
+                                    <th>Ketua Tim</th>
+                                    <th>Jumlah Anggota</th>
+                                    <th>Tanggal Daftar</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php while ($row = $result_rejected->fetch_assoc()):
+                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
+                                ?>
+                                    <tr>
+                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
+                                        <td>
+                                            <span class="badge-lomba <?php echo $badge_class; ?>">
+                                                <?php echo $row['jenis_lomba']; ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
+                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
+                                        <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
+                                        <td>
+                                            <div class="aksi-buttons">
+                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
+                                                    👁️ Detail
+                                                </button>
+                                                <a href="verifikasi.php?action=restore&id=<?php echo $row['id_tim']; ?>"
+                                                    class="btn-restore"
+                                                    onclick="return confirm('Kembalikan tim <?php echo htmlspecialchars($row['nama_tim']); ?> ke pending?')">
+                                                    🔄 Restore
+                                                </a>
+                                                <a href="javascript:void(0);"
+                                                    class="btn-delete"
+                                                    onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
+                                                    🗑️ Hapus
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                <?php endwhile; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 <?php else: ?>
-                <div class="no-data">
-                    <div class="no-data-icon">❌</div>
-                    <h3>Tidak ada tim yang ditolak</h3>
-                    <p>Semua tim dalam status pending atau aktif.</p>
-                </div>
+                    <div class="no-data">
+                        <div class="no-data-icon">❌</div>
+                        <h3>Tidak ada tim yang ditolak</h3>
+                        <p>Semua tim dalam status pending atau aktif.</p>
+                    </div>
                 <?php endif; ?>
             </div>
 
@@ -869,9 +890,9 @@ $result_rejected = $conn->query($sql_rejected);
         <footer class="dashboard-footer">
             <p>&copy; <?php echo date('Y'); ?> - Sistem Pendaftaran Lomba Politeknik Negeri Batam</p>
             <p style="margin-top: 5px; font-size: 0.85rem;">
-                Login sebagai: <strong><?php echo htmlspecialchars($nama_lengkap); ?></strong> • 
-                Level: <span class="level-badge level-<?php echo $level; ?>"><?php echo strtoupper($level); ?></span> • 
-                Total Tim: <strong><?php echo $total_tim; ?></strong> • 
+                Login sebagai: <strong><?php echo htmlspecialchars($nama_lengkap); ?></strong> •
+                Level: <span class="level-badge level-<?php echo $level; ?>"><?php echo strtoupper($level); ?></span> •
+                Total Tim: <strong><?php echo $total_tim; ?></strong> •
                 Terakhir diakses: <?php echo date('d/m/Y H:i:s'); ?>
             </p>
         </footer>
@@ -887,7 +908,7 @@ $result_rejected = $conn->query($sql_rejected);
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            
+
             // Tampilkan tab yang dipilih
             document.getElementById('tab-' + tabName).classList.add('active');
             event.currentTarget.classList.add('active');
@@ -938,7 +959,7 @@ $result_rejected = $conn->query($sql_rejected);
                 const originalText = btn.innerHTML;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
                 btn.disabled = true;
-                
+
                 // Kirim request hapus
                 fetch(`dashboard.php?hapus_tim=${idTim}`)
                     .then(response => {
@@ -962,8 +983,8 @@ $result_rejected = $conn->query($sql_rejected);
             }
         }
         // ================================================
-
     </script>
 </body>
+
 </html>
 <?php $conn->close(); ?>
