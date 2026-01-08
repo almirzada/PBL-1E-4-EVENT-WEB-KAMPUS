@@ -1,990 +1,722 @@
 <?php
 session_start();
-// PROTEKSI LOGIN - PERBAIKAN UNTUK MULTI USER
-if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== true) {
+// PROTEKSI LOGIN
+if (!isset($_SESSION['admin_event_id'])) {
     header("Location: login.php");
     exit();
 }
 
 // KONEKSI DATABASE
-$host = "localhost";
-$user = "root";
-$pass = "";
-$dbname = "db_lomba";
-
-$conn = new mysqli($host, $user, $pass, $dbname);
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
-}
+require_once '../koneksi.php';
 
 // ================================================
-// AMBIL DATA USER YANG SEDANG LOGIN
+// AMBIL DATA ADMIN YANG SEDANG LOGIN
 // ================================================
-$admin_id = $_SESSION['admin_id'] ?? 0;
-$username = $_SESSION['username'] ?? '';
-$nama_lengkap = $_SESSION['nama_lengkap'] ?? '';
-$level = $_SESSION['level'] ?? 'admin';
+$admin_id = $_SESSION['admin_event_id'];
+$admin_data = mysqli_query($conn, "SELECT * FROM admin_event WHERE id = $admin_id");
+$admin = mysqli_fetch_assoc($admin_data);
+
+$username = $admin['username'] ?? 'admin';
+$nama_lengkap = $admin['nama'] ?? 'Administrator';
+$level = $admin['level'] ?? 'admin';
 
 // ================================================
-// PROSES HAPUS TIM JIKA ADA PARAMETER
+// HITUNG STATISTIK REAL DARI DATABASE
 // ================================================
-if (isset($_GET['hapus_tim'])) {
-    $id_hapus = intval($_GET['hapus_tim']);
+// Total Event
+$total_event = mysqli_fetch_assoc(mysqli_query($conn, 
+    "SELECT COUNT(*) as total FROM events"))['total'] ?? 0;
 
-    // Hapus anggota terlebih dahulu
-    $delete_anggota = $conn->query("DELETE FROM anggota_tim WHERE id_tim = $id_hapus");
+// Event Hari Ini
+$today = date('Y-m-d');
+$event_hari_ini = mysqli_fetch_assoc(mysqli_query($conn, 
+    "SELECT COUNT(*) as total FROM events WHERE tanggal = '$today'"))['total'] ?? 0;
 
-    // Hapus tim
-    $delete_tim = $conn->query("DELETE FROM tim_lomba WHERE id_tim = $id_hapus");
+// Event Akan Datang (7 hari ke depan)
+$next_week = date('Y-m-d', strtotime('+7 days'));
+$event_akan_datang = mysqli_fetch_assoc(mysqli_query($conn, 
+    "SELECT COUNT(*) as total FROM events WHERE tanggal BETWEEN '$today' AND '$next_week' AND status = 'publik'"))['total'] ?? 0;
 
-    if ($delete_tim) {
-        $_SESSION['alert_message'] = "✅ Tim berhasil dihapus permanen!";
-        $_SESSION['alert_type'] = 'success';
-    } else {
-        $_SESSION['alert_message'] = "❌ Gagal menghapus tim: " . $conn->error;
-        $_SESSION['alert_type'] = 'error';
-    }
+// Total Kategori
+$total_kategori = mysqli_fetch_assoc(mysqli_query($conn, 
+    "SELECT COUNT(*) as total FROM kategori"))['total'] ?? 0;
 
-    // Redirect ke dashboard untuk refresh data
-    header("Location: dashboard.php");
-    exit();
-}
 // ================================================
+// AMBIL EVENT TERBARU (5 EVENT)
+// ================================================
+$event_terbaru = mysqli_query($conn, 
+    "SELECT e.*, k.nama as kategori_nama, k.warna
+     FROM events e 
+     LEFT JOIN kategori k ON e.kategori_id = k.id 
+     ORDER BY e.created_at DESC 
+     LIMIT 5");
 
-// HITUNG STATISTIK - PERBAIKAN: tim → tim_lomba
-$total_pending = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='pending'")->fetch_assoc()['total'] ?? 0;
-$total_verified = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='active'")->fetch_assoc()['total'] ?? 0; // GANTI verified → active
-$total_rejected = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE status='rejected'")->fetch_assoc()['total'] ?? 0;
-$total_tim = $total_pending + $total_verified + $total_rejected;
+// ================================================
+// AMBIL EVENT POPULER (BERDASARKAN VIEWS)
+// ================================================
+$event_populer = mysqli_query($conn, 
+    "SELECT e.*, k.nama as kategori_nama, k.warna
+     FROM events e 
+     LEFT JOIN kategori k ON e.kategori_id = k.id 
+     WHERE e.status = 'publik'
+     ORDER BY e.views DESC 
+     LIMIT 5");
 
-// AMBIL DATA PER STATUS UNTUK TAB - PERBAIKAN SEMUA QUERY
-$sql_pending = "SELECT t.*, 
-                (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
-                FROM tim_lomba t 
-                WHERE t.status='pending' 
-                ORDER BY t.tanggal_daftar DESC";
-$result_pending = $conn->query($sql_pending);
+// ================================================
+// AMBIL EVENT BERDASARKAN STATUS UNTUK TAB
+// ================================================
+// Draft
+$draft_events = mysqli_query($conn, 
+    "SELECT e.*, k.nama as kategori_nama 
+     FROM events e 
+     LEFT JOIN kategori k ON e.kategori_id = k.id 
+     WHERE e.status = 'draft' 
+     ORDER BY e.tanggal DESC");
 
-$sql_verified = "SELECT t.*, 
-                 (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
-                 FROM tim_lomba t 
-                 WHERE t.status='active' 
-                 ORDER BY t.tanggal_daftar DESC";
-$result_verified = $conn->query($sql_verified);
+// Publik
+$publik_events = mysqli_query($conn, 
+    "SELECT e.*, k.nama as kategori_nama 
+     FROM events e 
+     LEFT JOIN kategori k ON e.kategori_id = k.id 
+     WHERE e.status = 'publik' 
+     ORDER BY e.tanggal DESC");
 
-$sql_rejected = "SELECT t.*, 
-                 (SELECT COUNT(*) FROM anggota_tim a WHERE a.id_tim = t.id_tim) as jumlah_anggota
-                 FROM tim_lomba t 
-                 WHERE t.status='rejected' 
-                 ORDER BY t.tanggal_daftar DESC";
-$result_rejected = $conn->query($sql_rejected);
+// Selesai
+$selesai_events = mysqli_query($conn, 
+    "SELECT e.*, k.nama as kategori_nama 
+     FROM events e 
+     LEFT JOIN kategori k ON e.kategori_id = k.id 
+     WHERE e.status = 'selesai' 
+     ORDER BY e.tanggal DESC");
+
+// Hitung jumlah per status
+$total_draft = mysqli_num_rows($draft_events);
+$total_publik = mysqli_num_rows($publik_events);
+$total_selesai = mysqli_num_rows($selesai_events);
 ?>
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Admin - Data Tim Lomba</title>
+    <title>Dashboard Admin - Event Kampus</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css');
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.5/font/bootstrap-icons.min.css');
-    </style>
-    <style>
-        /* RESET & BASE */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --success: #4cc9f0;
+            --info: #7209b7;
+            --warning: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+        }
+        
+        body {
+            background-color: #f5f7fb;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
-        body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        
+        .dashboard-wrapper {
             min-height: 100vh;
+        }
+        
+        /* SIDEBAR */
+        .sidebar {
+            background: linear-gradient(180deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            min-height: 100vh;
+            position: fixed;
+            width: 250px;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar-header {
+            padding: 25px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.8);
+            padding: 12px 20px;
+            margin: 5px 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+        
+        .nav-link i {
+            width: 24px;
+            margin-right: 10px;
+        }
+        
+        /* MAIN CONTENT */
+        .main-content {
+            margin-left: 250px;
             padding: 20px;
         }
-
-        /* CONTAINER UTAMA */
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
+        
+        /* HEADER */
+        .top-header {
             background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
-            overflow: hidden;
-        }
-
-        /* HEADER DASHBOARD */
-        .dashboard-header {
-            background: linear-gradient(to right, #1e88e5, #0d47a1);
-            color: white;
-            padding: 30px 40px;
-            position: relative;
-        }
-
-        .header-top {
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
         }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .logo-icon {
-            font-size: 2.5rem;
-            background: rgba(255, 255, 255, 0.2);
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .logo-text h1 {
-            font-size: 1.8rem;
-            margin-bottom: 5px;
-        }
-
-        .logo-text p {
-            opacity: 0.9;
-            font-size: 0.95rem;
-        }
-
+        
         .user-info {
             display: flex;
             align-items: center;
             gap: 15px;
         }
-
+        
         .user-avatar {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.3);
+            width: 45px;
+            height: 45px;
+            background: var(--primary);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
-        }
-
-        .logout-btn {
-            background: rgba(255, 255, 255, 0.2);
             color: white;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            padding: 10px 25px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            font-weight: bold;
         }
-
-        .logout-btn:hover {
-            background: white;
-            color: #1e88e5;
-            transform: translateY(-3px);
-        }
-
+        
         /* STATS CARDS */
-        .stats-container {
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 20px;
-            margin-top: 20px;
+            margin-bottom: 30px;
         }
-
+        
         .stat-card {
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border-left: 4px solid var(--primary);
             transition: transform 0.3s;
         }
-
+        
         .stat-card:hover {
             transform: translateY(-5px);
         }
-
+        
         .stat-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            display: block;
-        }
-
-        .stat-number {
             font-size: 2.2rem;
-            font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
+            color: var(--primary);
         }
-
+        
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+        
         .stat-label {
-            font-size: 0.95rem;
-            opacity: 0.9;
+            color: #6c757d;
+            font-size: 0.9rem;
         }
-
-        /* TAB NAVIGATION */
-        .tab-container {
-            display: flex;
-            border-bottom: 2px solid #eee;
-            margin-bottom: 25px;
-            background: #f8f9fa;
-            border-radius: 10px 10px 0 0;
-            overflow: hidden;
+        
+        /* CHARTS & TABLES */
+        .content-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
         }
-
-        .tab-btn {
-            flex: 1;
-            padding: 18px;
+        
+        .card {
             border: none;
-            background: none;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            color: #666;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-
-        .tab-btn.active {
-            background: #1e88e5;
-            color: white;
-        }
-
-        .tab-btn:hover:not(.active) {
-            background: #e9ecef;
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.5s;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-
-            to {
-                opacity: 1;
-            }
-        }
-
-        /* TABLE SECTION */
-        .table-section {
-            padding: 40px;
-        }
-
-        .section-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-        }
-
-        .section-title h2 {
-            color: #2c3e50;
-            font-size: 1.8rem;
-        }
-
-        .add-btn {
-            background: #1e88e5;
-            color: white;
-            padding: 12px 25px;
-            border-radius: 10px;
-            text-decoration: none;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: all 0.3s;
-        }
-
-        .add-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
-        }
-
-        /* TABLE STYLING */
-        .table-container {
-            background: #f8f9fa;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            min-width: 1000px;
-        }
-
-        thead {
-            background: linear-gradient(to right, #34495e, #2c3e50);
-            color: white;
-        }
-
-        th {
-            padding: 20px 15px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 1rem;
-        }
-
-        tbody tr {
+        
+        .card-header {
+            background: white;
             border-bottom: 1px solid #eee;
-            transition: background 0.2s;
+            padding: 18px 25px;
+            font-weight: 600;
         }
-
-        tbody tr:hover {
-            background: #e8f4fc;
+        
+        .table th {
+            border-top: none;
+            font-weight: 600;
+            color: #6c757d;
         }
-
-        td {
-            padding: 18px 15px;
-            color: #444;
-            vertical-align: top;
-        }
-
-        /* BADGE */
-        .badge-lomba {
-            display: inline-block;
+        
+        .badge-status {
             padding: 5px 12px;
             border-radius: 20px;
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 600;
         }
-
-        .badge-futsal {
-            background: #ff6b6b;
-            color: white;
-        }
-
-        .badge-basket {
-            background: #4ecdc4;
-            color: white;
-        }
-
-        .badge-badminton {
-            background: #ffe66d;
-            color: #333;
-        }
-
-        /* BADGE LEVEL USER */
-        .level-badge {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            margin-left: 5px;
-        }
-
-        .level-super_admin {
-            background: linear-gradient(to right, #f39c12, #e67e22);
-            color: white;
-        }
-
-        .level-admin {
-            background: linear-gradient(to right, #3498db, #2980b9);
-            color: white;
-        }
-
-        /* ACTION BUTTONS */
-        .action-btns {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-
-        .btn-view,
-        .btn-verify,
-        .btn-reject,
-        .btn-edit,
-        .btn-delete,
-        .btn-restore {
-            padding: 8px 15px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-
-        .btn-view {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .btn-verify {
-            background: #28a745;
-            color: white;
-        }
-
-        .btn-reject {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-edit {
-            background: #ffc107;
-            color: #000;
-        }
-
-        .btn-delete {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-restore {
-            background: #6c757d;
-            color: white;
-        }
-
-        .btn-view:hover,
-        .btn-verify:hover,
-        .btn-reject:hover,
-        .btn-edit:hover,
-        .btn-delete:hover,
-        .btn-restore:hover {
-            transform: translateY(-2px);
-            filter: brightness(110%);
-        }
-
-        /* STYLE UNTUK TOMBOL RESTORE DAN HAPUS */
-        .aksi-buttons {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-
-        /* FOOTER */
-        .dashboard-footer {
-            background: #f8f9fa;
-            padding: 20px 40px;
-            text-align: center;
-            color: #666;
-            border-top: 1px solid #eee;
-            font-size: 0.9rem;
-        }
-
-        /* NO DATA MESSAGE */
-        .no-data {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-
-        .no-data-icon {
-            font-size: 4rem;
-            margin-bottom: 20px;
-            opacity: 0.3;
-        }
-
-        /* MODAL DETAIL */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 80vh;
-            overflow-y: auto;
-            padding: 30px;
-            position: relative;
-        }
-
-        .close-modal {
-            position: absolute;
-            top: 20px;
-            right: 25px;
-            font-size: 2rem;
-            cursor: pointer;
-            color: #666;
-        }
-
+        
+        .badge-draft { background: #ffc107; color: #000; }
+        .badge-publik { background: #28a745; color: white; }
+        .badge-selesai { background: #17a2b8; color: white; }
+        
         /* RESPONSIVE */
         @media (max-width: 992px) {
-            .header-top {
-                flex-direction: column;
-                gap: 20px;
-                text-align: center;
+            .sidebar {
+                width: 70px;
             }
-
-            .stats-container {
-                grid-template-columns: repeat(2, 1fr);
+            .sidebar .menu-text {
+                display: none;
             }
-
-            .tab-btn {
-                padding: 15px 10px;
-                font-size: 1rem;
+            .main-content {
+                margin-left: 70px;
             }
-        }
-
-        @media (max-width: 576px) {
-            .stats-container {
+            .content-row {
                 grid-template-columns: 1fr;
             }
-
-            .table-section {
-                padding: 20px;
-            }
-
-            .tab-btn span {
-                display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
-
 <body>
-    <div class="dashboard-container">
-        <!-- HEADER -->
-        <header class="dashboard-header">
-            <div class="header-top">
-                <div class="logo">
-                    <div class="logo-icon">📊</div>
-                    <div class="logo-text">
-                        <h1>Admin Dashboard</h1>
-                        <p>Politeknik Negeri Batam - Lomba Antar Jurusan</p>
-                    </div>
-                </div>
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <?php
-                        // Avatar berbeda untuk super_admin vs admin biasa
-                        if ($level === 'super_admin') {
-                            echo '👑'; // Crown untuk super admin
-                        } else {
-                            echo '👨‍💼'; // Avatar biasa untuk admin
-                        }
-                        ?>
-                    </div>
-                    <div style="text-align: right; margin-right: 15px;">
-                        <div style="font-weight: bold; font-size: 1.1rem;"><?php echo htmlspecialchars($nama_lengkap); ?></div>
-                        <div style="font-size: 0.85rem; opacity: 0.9;">
-                            @<?php echo htmlspecialchars($username); ?>
-                            <span class="level-badge level-<?php echo $level; ?>">
-                                <?php echo strtoupper($level); ?>
-                            </span>
-                        </div>
-                    </div>
-                    <a href="logout.php" class="logout-btn" onclick="return confirm('Yakin mau logout dari dashboard?')">
-                        <span>🚪</span> Logout
+    <div class="dashboard-wrapper">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header text-center">
+                <h4><i class="fas fa-calendar-alt"></i> <span class="menu-text">EventKampus</span></h4>
+                <small class="menu-text">Admin Panel</small>
+            </div>
+            
+            <div class="sidebar-menu">
+                <nav class="nav flex-column">
+                    <a href="dashboard.php" class="nav-link active">
+                        <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
-                </div>
-            </div>
-
-            <!-- STATS CARDS -->
-            <div class="stats-container">
-                <div class="stat-card">
-                    <span class="stat-icon">📥</span>
-                    <div class="stat-number"><?php echo $total_pending; ?></div>
-                    <div class="stat-label">Menunggu Verifikasi</div>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon">✅</span>
-                    <div class="stat-number"><?php echo $total_verified; ?></div>
-                    <div class="stat-label">Tim Aktif</div>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon">📅</span>
-                    <div class="stat-number"><?php echo date('d/m/Y'); ?></div>
-                    <div class="stat-label">Tanggal Hari Ini</div>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-icon">❌</span>
-                    <div class="stat-number"><?php echo $total_rejected; ?></div>
-                    <div class="stat-label">Tim Ditolak</div>
-                </div>
-            </div>
-        </header>
-
-        <!-- MAIN CONTENT -->
-        <main class="table-section">
-            <div class="section-title">
-                <h2>📋 Data Tim Lomba</h2>
-                <div style="display: flex; gap: 10px;">
-                    <?php if ($level === 'super_admin'): ?>
-                        <!-- Menu khusus untuk Super Admin -->
-                        <a href="manajemen_user.php" class="add-btn">
-                            <i class="fas bi bi-person"></i> Kelola User
+                    <a href="form.php" class="nav-link">
+                        <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Event</span>
+                    </a>
+                    <a href="#" class="nav-link">
+                        <i class="fas fa-list"></i> <span class="menu-text">Semua Event</span>
+                    </a>
+                    <a href="pengaturan.php" class="nav-link">
+                        <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
+                    </a>
+                    <a href="mangiemen_user.php" class="nav-link">
+                        <i class="fas fa-users"></i> <span class="menu-text">Pengguna</span>
+                    </a>
+                    <a href="pengaturan.php" class="nav-link">
+                        <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>
+                    </a>
+                    <div class="mt-4 pt-3 border-top border-secondary">
+                        <a href="../index.php" class="nav-link" target="_blank">
+                            <i class="fas fa-external-link-alt"></i> <span class="menu-text">Lihat Website</span>
                         </a>
-                        <a href="pengaturan.php" class="add-btn">
-                            <i class="fas fa-cog"></i> Pengaturan
+                        <a href="logout.php" class="nav-link text-danger">
+                            <i class="fas fa-sign-out-alt"></i> <span class="menu-text">Keluar</span>
                         </a>
-                    <?php endif; ?>
-                    <!-- TOMBOL EDIT DETAIL LOMBA -->
-                    <a href="edit_detail.php?jenis=Futsal" class="add-btn" >
-                        <i class="fas fa-futbol"></i> Edit Futsal
-                    </a>
-                    <a href="edit_detail.php?jenis=Basket" class="add-btn" >
-                        <i class="fas fa-basketball-ball"></i> Edit Basket
-                    </a>
-                    <a href="edit_detail.php?jenis=Badminton" class="add-btn">
-                        <i class="fas fa-table-tennis"></i> Edit Badminton
-                    </a>
-
-                </div>
-            </div>
-
-            <!-- TAB NAVIGATION -->
-            <div class="tab-container">
-                <button class="tab-btn active" onclick="showTab('pending')">
-                    <span>⏳</span> Pending (<?php echo $total_pending; ?>)
-                </button>
-                <button class="tab-btn" onclick="showTab('verified')">
-                    <span>✅</span> Aktif (<?php echo $total_verified; ?>)
-                </button>
-                <button class="tab-btn" onclick="showTab('rejected')">
-                    <span>❌</span> Ditolak (<?php echo $total_rejected; ?>)
-                </button>
-            </div>
-
-            <!-- TAB 1: PENDING -->
-            <div id="tab-pending" class="tab-content active">
-                <?php if ($result_pending->num_rows > 0): ?>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nama Tim</th>
-                                    <th>Jenis Lomba</th>
-                                    <th>Ketua Tim</th>
-                                    <th>Jumlah Anggota</th>
-                                    <th>Tanggal Daftar</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($row = $result_pending->fetch_assoc()):
-                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                                ?>
-                                    <tr>
-                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                        <td>
-                                            <span class="badge-lomba <?php echo $badge_class; ?>">
-                                                <?php echo $row['jenis_lomba']; ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                        <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
-                                        <td>
-                                            <div class="action-btns">
-                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                                    👁️ Detail
-                                                </button>
-                                                <a href="verifikasi.php?action=terima&id=<?php echo $row['id_tim']; ?>"
-                                                    class="btn-verify"
-                                                    onclick="return confirm('Terima tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                                    ✅ Terima
-                                                </a>
-                                                <a href="verifikasi.php?action=tolak&id=<?php echo $row['id_tim']; ?>"
-                                                    class="btn-reject"
-                                                    onclick="return confirm('Tolak tim <?php echo htmlspecialchars($row['nama_tim']); ?>?')">
-                                                    ❌ Tolak
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
                     </div>
-                <?php else: ?>
-                    <div class="no-data">
-                        <div class="no-data-icon">📭</div>
-                        <h3>Tidak ada tim yang menunggu verifikasi</h3>
-                        <p>Semua tim sudah diproses.</p>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- TAB 2: VERIFIED -->
-            <div id="tab-verified" class="tab-content">
-                <?php if ($result_verified->num_rows > 0): ?>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nama Tim</th>
-                                    <th>Jenis Lomba</th>
-                                    <th>Ketua Tim</th>
-                                    <th>No. WA</th>
-                                    <th>Jumlah Anggota</th>
-                                    <th>Tanggal Verifikasi</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($row = $result_verified->fetch_assoc()):
-                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                                ?>
-                                    <tr>
-                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                        <td>
-                                            <span class="badge-lomba <?php echo $badge_class; ?>">
-                                                <?php echo $row['jenis_lomba']; ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                        <td>
-                                            <?php if (!empty($row['no_wa'])): ?>
-                                                <a href="https://wa.me/<?php echo preg_replace('/[^0-9]/', '', $row['no_wa']); ?>"
-                                                    target="_blank"
-                                                    style="color: #25D366; text-decoration: none;">
-                                                    📱 <?php echo htmlspecialchars($row['no_wa']); ?>
-                                                </a>
-                                            <?php else: ?>
-                                                <span style="color: #999;">-</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                        <td>
-                                            <?php if ($row['tanggal_daftar']): ?>
-                                                <?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?>
-                                            <?php else: ?>
-                                                <span style="color: #999;">-</span>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="action-btns">
-                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                                    👁️ Detail
-                                                </button>
-                                                <a href="edit_tim.php?id=<?php echo $row['id_tim']; ?>" class="btn-edit">
-                                                    ✏️ Edit
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    class="btn-delete"
-                                                    onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-                                                    🗑️ Hapus
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php else: ?>
-                    <div class="no-data">
-                        <div class="no-data-icon">✅</div>
-                        <h3>Belum ada tim yang aktif</h3>
-                        <p>Verifikasi tim dari tab "Pending" untuk menampilkan di sini.</p>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-            <!-- TAB 3: REJECTED -->
-            <div id="tab-rejected" class="tab-content">
-                <?php if ($result_rejected->num_rows > 0): ?>
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Nama Tim</th>
-                                    <th>Jenis Lomba</th>
-                                    <th>Ketua Tim</th>
-                                    <th>Jumlah Anggota</th>
-                                    <th>Tanggal Daftar</th>
-                                    <th>Aksi</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php while ($row = $result_rejected->fetch_assoc()):
-                                    $badge_class = 'badge-' . strtolower($row['jenis_lomba']);
-                                ?>
-                                    <tr>
-                                        <td><strong><?php echo htmlspecialchars($row['nama_tim']); ?></strong></td>
-                                        <td>
-                                            <span class="badge-lomba <?php echo $badge_class; ?>">
-                                                <?php echo $row['jenis_lomba']; ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($row['ketua_nama']); ?></td>
-                                        <td><?php echo $row['jumlah_anggota']; ?> orang</td>
-                                        <td><?php echo date('d/m/Y H:i', strtotime($row['tanggal_daftar'])); ?></td>
-                                        <td>
-                                            <div class="aksi-buttons">
-                                                <button class="btn-view" onclick="showDetail(<?php echo $row['id_tim']; ?>)">
-                                                    👁️ Detail
-                                                </button>
-                                                <a href="verifikasi.php?action=restore&id=<?php echo $row['id_tim']; ?>"
-                                                    class="btn-restore"
-                                                    onclick="return confirm('Kembalikan tim <?php echo htmlspecialchars($row['nama_tim']); ?> ke pending?')">
-                                                    🔄 Restore
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    class="btn-delete"
-                                                    onclick="hapusTim(<?php echo $row['id_tim']; ?>, '<?php echo htmlspecialchars($row['nama_tim']); ?>')">
-                                                    🗑️ Hapus
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endwhile; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php else: ?>
-                    <div class="no-data">
-                        <div class="no-data-icon">❌</div>
-                        <h3>Tidak ada tim yang ditolak</h3>
-                        <p>Semua tim dalam status pending atau aktif.</p>
-                    </div>
-                <?php endif; ?>
-            </div>
-
-        </main>
-
-        <!-- MODAL DETAIL TIM -->
-        <div id="modalDetail" class="modal">
-            <div class="modal-content">
-                <span class="close-modal" onclick="closeModal()">&times;</span>
-                <div id="modalBody">
-                    <!-- Data akan diisi via JavaScript -->
-                </div>
+                </nav>
             </div>
         </div>
-
-        <!-- FOOTER -->
-        <footer class="dashboard-footer">
-            <p>&copy; <?php echo date('Y'); ?> - Sistem Pendaftaran Lomba Politeknik Negeri Batam</p>
-            <p style="margin-top: 5px; font-size: 0.85rem;">
-                Login sebagai: <strong><?php echo htmlspecialchars($nama_lengkap); ?></strong> •
-                Level: <span class="level-badge level-<?php echo $level; ?>"><?php echo strtoupper($level); ?></span> •
-                Total Tim: <strong><?php echo $total_tim; ?></strong> •
-                Terakhir diakses: <?php echo date('d/m/Y H:i:s'); ?>
-            </p>
-        </footer>
+        
+        <!-- MAIN CONTENT -->
+        <div class="main-content">
+            <!-- TOP HEADER -->
+            <div class="top-header">
+                <div>
+                    <h4 class="mb-0">Selamat Datang, <strong><?php echo htmlspecialchars($nama_lengkap); ?></strong></h4>
+                    <small class="text-muted"><?php echo date('l, d F Y'); ?></small>
+                </div>
+                
+                <div class="user-info">
+                    <div class="text-end">
+                        <div class="fw-bold">@<?php echo htmlspecialchars($username); ?></div>
+                        <small class="badge bg-primary"><?php echo ucfirst($level); ?></small>
+                    </div>
+                    <div class="user-avatar">
+                        <?php echo strtoupper(substr($nama_lengkap, 0, 1)); ?>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- STATS GRID -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stat-number"><?php echo $total_event; ?></div>
+                    <div class="stat-label">Total Event</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-running"></i>
+                    </div>
+                    <div class="stat-number"><?php echo $event_hari_ini; ?></div>
+                    <div class="stat-label">Event Hari Ini</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <div class="stat-number"><?php echo $event_akan_datang; ?></div>
+                    <div class="stat-label">Event Mendatang</div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div class="stat-number"><?php echo $total_kategori; ?></div>
+                    <div class="stat-label">Kategori</div>
+                </div>
+            </div>
+            
+            <!-- CONTENT ROW -->
+            <div class="content-row">
+                <!-- LEFT COLUMN: EVENT TERBARU -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-history me-2"></i> Event Terbaru</span>
+                        <a href="#" class="btn btn-sm btn-primary">Lihat Semua</a>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Judul Event</th>
+                                        <th>Tanggal</th>
+                                        <th>Kategori</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (mysqli_num_rows($event_terbaru) > 0): ?>
+                                        <?php while ($event = mysqli_fetch_assoc($event_terbaru)): ?>
+                                            <tr>
+                                                <td>
+                                                    <strong><?php echo htmlspecialchars($event['judul']); ?></strong>
+                                                    <br>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($event['lokasi']); ?></small>
+                                                </td>
+                                                <td><?php echo date('d/m/Y', strtotime($event['tanggal'])); ?></td>
+                                                <td>
+                                                    <span class="badge" style="background: <?php echo $event['warna'] ?? '#4361ee'; ?>; color: white;">
+                                                        <?php echo $event['kategori_nama'] ?? 'Umum'; ?>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge-status badge-<?php echo $event['status']; ?>">
+                                                        <?php echo ucfirst($event['status']); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endwhile; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4">
+                                                <i class="fas fa-calendar-times fa-2x text-muted mb-2"></i>
+                                                <p class="mb-0">Belum ada event</p>
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- RIGHT COLUMN: STATISTIK STATUS -->
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-pie me-2"></i> Status Event
+                    </div>
+                    <div class="card-body">
+                        <canvas id="statusChart" height="200"></canvas>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span><span class="badge bg-warning me-2">●</span> Draft</span>
+                                <strong><?php echo $total_draft; ?></strong>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span><span class="badge bg-success me-2">●</span> Publik</span>
+                                <strong><?php echo $total_publik; ?></strong>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span><span class="badge bg-info me-2">●</span> Selesai</span>
+                                <strong><?php echo $total_selesai; ?></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- EVENT PER STATUS (TABS) -->
+            <div class="card">
+                <div class="card-header">
+                    <ul class="nav nav-tabs card-header-tabs">
+                        <li class="nav-item">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#draft">
+                                <i class="fas fa-edit me-1"></i> Draft (<?php echo $total_draft; ?>)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#publik">
+                                <i class="fas fa-check-circle me-1"></i> Publik (<?php echo $total_publik; ?>)
+                            </button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#selesai">
+                                <i class="fas fa-flag-checkered me-1"></i> Selesai (<?php echo $total_selesai; ?>)
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="card-body">
+                    <div class="tab-content">
+                        <!-- TAB DRAFT -->
+                        <div class="tab-pane fade show active" id="draft">
+                            <?php if ($total_draft > 0): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Judul</th>
+                                                <th>Kategori</th>
+                                                <th>Tanggal</th>
+                                                <th>Lokasi</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php mysqli_data_seek($draft_events, 0); ?>
+                                            <?php while ($event = mysqli_fetch_assoc($draft_events)): ?>
+                                                <tr>
+                                                    <td><?php echo htmlspecialchars($event['judul']); ?></td>
+                                                    <td><?php echo $event['kategori_nama'] ?? 'Umum'; ?></td>
+                                                    <td><?php echo date('d/m/Y', strtotime($event['tanggal'])); ?></td>
+                                                    <td><?php echo htmlspecialchars($event['lokasi']); ?></td>
+                                                    <td>
+                                                        <a href="form.php?edit=<?php echo $event['id']; ?>" class="btn btn-sm btn-warning">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        <a href="?publish=<?php echo $event['id']; ?>" class="btn btn-sm btn-success">
+                                                            <i class="fas fa-check"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-4">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <h5>Tidak ada event dalam draft</h5>
+                                    <p class="text-muted">Semua event sudah dipublikasikan</p>
+                                    <a href="form.php" class="btn btn-primary">
+                                        <i class="fas fa-plus-circle me-1"></i> Buat Event Baru
+                                    </a>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- TAB PUBLIK -->
+                        <div class="tab-pane fade" id="publik">
+                            <?php if ($total_publik > 0): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Judul</th>
+                                                <th>Kategori</th>
+                                                <th>Tanggal & Waktu</th>
+                                                <th>Lokasi</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php mysqli_data_seek($publik_events, 0); ?>
+                                            <?php while ($event = mysqli_fetch_assoc($publik_events)): ?>
+                                                <tr>
+                                                    <td>
+                                                        <strong><?php echo htmlspecialchars($event['judul']); ?></strong>
+                                                        <?php if ($event['featured']): ?>
+                                                            <span class="badge bg-warning ms-2">Featured</span>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge" style="background: <?php echo $event['warna'] ?? '#4361ee'; ?>; color: white;">
+                                                            <?php echo $event['kategori_nama'] ?? 'Umum'; ?>
+                                                        </span>
+                                                    </td>
+                                                    <td>
+                                                        <?php echo date('d/m/Y', strtotime($event['tanggal'])); ?>
+                                                        <?php if ($event['waktu']): ?>
+                                                            <br><small><?php echo date('H:i', strtotime($event['waktu'])); ?></small>
+                                                        <?php endif; ?>
+                                                    </td>
+                                                    <td><?php echo htmlspecialchars($event['lokasi']); ?></td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <a href="../detail_event.php?id=<?php echo $event['id']; ?>" 
+                                                               class="btn btn-info" target="_blank">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a href="form.php?edit=<?php echo $event['id']; ?>" 
+                                                               class="btn btn-warning">
+                                                                <i class="fas fa-edit"></i>
+                                                            </a>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-4">
+                                    <i class="fas fa-calendar-check fa-3x text-muted mb-3"></i>
+                                    <h5>Belum ada event yang dipublikasikan</h5>
+                                    <p class="text-muted">Publikasikan event dari tab "Draft"</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- TAB SELESAI -->
+                        <div class="tab-pane fade" id="selesai">
+                            <?php if ($total_selesai > 0): ?>
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Judul</th>
+                                                <th>Kategori</th>
+                                                <th>Tanggal</th>
+                                                <th>Lokasi</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php mysqli_data_seek($selesai_events, 0); ?>
+                                            <?php while ($event = mysqli_fetch_assoc($selesai_events)): ?>
+                                                <tr>
+                                                    <td><?php echo htmlspecialchars($event['judul']); ?></td>
+                                                    <td><?php echo $event['kategori_nama'] ?? 'Umum'; ?></td>
+                                                    <td><?php echo date('d/m/Y', strtotime($event['tanggal'])); ?></td>
+                                                    <td><?php echo htmlspecialchars($event['lokasi']); ?></td>
+                                                    <td>
+                                                        <a href="form.php?edit=<?php echo $event['id']; ?>" class="btn btn-sm btn-warning">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            <?php else: ?>
+                                <div class="text-center py-4">
+                                    <i class="fas fa-flag-checkered fa-3x text-muted mb-3"></i>
+                                    <h5>Tidak ada event yang selesai</h5>
+                                    <p class="text-muted">Semua event masih aktif</p>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- FOOTER -->
+            <footer class="mt-4 text-center text-muted">
+                <hr>
+                <small>
+                    &copy; <?php echo date('Y'); ?> Sistem Event Kampus - Politeknik Negeri Batam
+                    | Login: <?php echo htmlspecialchars($username); ?>
+                    | Terakhir login: <?php echo $admin['last_login'] ? date('d/m/Y H:i', strtotime($admin['last_login'])) : 'Baru saja'; ?>
+                </small>
+            </footer>
+        </div>
     </div>
-
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
     <script>
-        // FUNGSI TAB
-        function showTab(tabName) {
-            // Sembunyikan semua tab
-            document.querySelectorAll('.tab-content').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-
-            // Tampilkan tab yang dipilih
-            document.getElementById('tab-' + tabName).classList.add('active');
-            event.currentTarget.classList.add('active');
-        }
-
-        // FUNGSI MODAL DETAIL
-        function showDetail(idTim) {
-            fetch('detail_tim.php?id=' + idTim)
-                .then(response => response.text())
-                .then(data => {
-                    document.getElementById('modalBody').innerHTML = data;
-                    document.getElementById('modalDetail').style.display = 'flex';
-                });
-        }
-
-        function closeModal() {
-            document.getElementById('modalDetail').style.display = 'none';
-        }
-
-        // KONFIRMASI LOGOUT
-        document.querySelector('.logout-btn').addEventListener('click', function(e) {
-            if (!confirm('Yakin mau logout dari dashboard?')) {
-                e.preventDefault();
+        // Pie Chart untuk Status Event
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        const statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Draft', 'Publik', 'Selesai'],
+                datasets: [{
+                    data: [<?php echo $total_draft; ?>, <?php echo $total_publik; ?>, <?php echo $total_selesai; ?>],
+                    backgroundColor: [
+                        '#ffc107',
+                        '#28a745',
+                        '#17a2b8'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
             }
         });
-
-        // TUTUP MODAL JIKA KLIK DI LUAR
-        window.onclick = function(event) {
-            const modal = document.getElementById('modalDetail');
-            if (event.target == modal) {
-                closeModal();
+        
+        // Tab functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-activate tab from URL hash
+            const hash = window.location.hash;
+            if (hash) {
+                const tab = new bootstrap.Tab(document.querySelector(`[data-bs-target="${hash}"]`));
+                tab.show();
             }
-        }
-
-        // FUNGSI UNTUK TUTUP MODAL EDIT
-        function closeModalEdit() {
-            document.getElementById('modalEdit').style.display = 'none';
-            document.getElementById('modalEditBody').innerHTML = '';
-        }
-
-        // ================================================
-        // FUNGSI UNTUK HAPUS TIM
-        // ================================================
-        function hapusTim(idTim, namaTim) {
-            if (confirm(`⚠️ HAPUS PERMANEN?\n\nTim: "${namaTim}"\n\nAksi ini tidak dapat dibatalkan!`)) {
-                // Tampilkan loading
-                const btn = event.target;
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghapus...';
-                btn.disabled = true;
-
-                // Kirim request hapus
-                fetch(`dashboard.php?hapus_tim=${idTim}`)
-                    .then(response => {
-                        if (response.ok) {
-                            // Tampilkan pesan sukses
-                            alert('✅ Tim berhasil dihapus!');
-                            // Reload halaman untuk update data
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1000);
-                        } else {
-                            throw new Error('Gagal menghapus');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                        alert('❌ Gagal menghapus tim!');
-                        btn.innerHTML = originalText;
-                        btn.disabled = false;
-                    });
-            }
-        }
-        // ================================================
+            
+            // Publish event confirmation
+            document.querySelectorAll('a[href*="publish="]').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    if (!confirm('Publikasikan event ini?')) {
+                        e.preventDefault();
+                    }
+                });
+            });
+        });
+        
+        // Real-time update setiap 30 detik
+        setInterval(() => {
+            // Update waktu
+            const now = new Date();
+            document.querySelector('.text-muted small').textContent = 
+                now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }, 30000);
     </script>
 </body>
-
 </html>
-<?php $conn->close(); ?>
+<?php mysqli_close($conn); ?>

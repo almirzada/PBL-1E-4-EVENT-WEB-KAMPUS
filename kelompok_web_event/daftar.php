@@ -1,1313 +1,1190 @@
 <?php
-// ============ CEK STATUS PENDAFTARAN & KUOTA ============
+require_once 'koneksi.php';
 session_start();
 
-// KONEKSI DATABASE
-$host = "localhost";
-$user = "root";
-$pass = "";
-$dbname = "db_lomba";
+// ============================================
+// 1. VALIDASI EVENT & AMBIL DARI DATABASE LANGSUNG
+// ============================================
+// HAPUS debugging yang membuat tampilan jelek
+error_reporting(0); // Nonaktifkan error display
 
-$conn = new mysqli($host, $user, $pass, $dbname);
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+// Jika tidak ada event_id, ambil event pertama dari database
+if (!isset($_GET['event_id']) || empty($_GET['event_id'])) {
+    // Ambil event terbaru atau event pertama yang aktif
+    $query = "SELECT e.*, k.nama as kategori_nama, k.warna, k.ikon 
+              FROM events e 
+              LEFT JOIN kategori k ON e.kategori_id = k.id 
+              WHERE e.status = 'aktif' 
+              ORDER BY e.tanggal DESC 
+              LIMIT 1";
+    
+    $result = mysqli_query($conn, $query);
+    
+    if (mysqli_num_rows($result) == 0) {
+        // Jika tidak ada event sama sekali, redirect ke event.php
+        $_SESSION['error'] = "Tidak ada event yang tersedia untuk pendaftaran.";
+        header("Location: event.php");
+        exit();
+    }
+    
+    $event = mysqli_fetch_assoc($result);
+    $event_id = $event['id'];
+    
+    // Tampilkan pesan bahwa ini adalah event terbaru
+    $info_message = "Menampilkan event terbaru. Pilih event lain di <a href='event.php'>halaman event</a>.";
+} else {
+    // Bersihkan dan validasi event_id dari URL
+    $event_id = intval($_GET['event_id']);
+    
+    if ($event_id <= 0) {
+        $_SESSION['error'] = "ID Event tidak valid.";
+        header("Location: event.php");
+        exit();
+    }
+    
+    // Query yang lebih aman dengan prepared statement
+    $query = "SELECT e.*, k.nama as kategori_nama, k.warna, k.ikon 
+              FROM events e 
+              LEFT JOIN kategori k ON e.kategori_id = k.id 
+              WHERE e.id = ? AND e.status = 'aktif'";
+    
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        $_SESSION['error'] = "Terjadi kesalahan pada server.";
+        header("Location: event.php");
+        exit();
+    }
+    
+    $stmt->bind_param("i", $event_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    // Cek jika event tidak ditemukan
+    if ($result->num_rows == 0) {
+        $_SESSION['error'] = "Event tidak ditemukan atau sudah tidak aktif.";
+        header("Location: event.php");
+        exit();
+    }
+    
+    $event = $result->fetch_assoc();
 }
 
-// AMBIL PENGATURAN DARI DATABASE
-$pengaturan = [];
-$result = $conn->query("SELECT nama_setting, nilai_setting FROM pengaturan_sistem");
-while ($row = $result->fetch_assoc()) {
-    $pengaturan[$row['nama_setting']] = $row['nilai_setting'];
+// ============================================
+// 2. CEK APAKAH PENDAFTARAN MASIH DIBUKA
+// ============================================
+$today = date('Y-m-d');
+$pendaftaran_dibuka = true;
+$alasan_tutup = '';
+
+// Cek tanggal daftar akhir jika ada
+if (!empty($event['tanggal_daftar_akhir']) && $today > $event['tanggal_daftar_akhir']) {
+    $pendaftaran_dibuka = false;
+    $alasan_tutup = "Pendaftaran telah ditutup sejak " . date('d F Y', strtotime($event['tanggal_daftar_akhir']));
 }
 
-// JIKA TABEL BELUM ADA, PAKE DEFAULT
-if (empty($pengaturan)) {
-    $pengaturan = [
-        'status_pendaftaran' => 'buka',
-        'kuota_futsal' => '16',
-        'kuota_basket' => '12', 
-        'kuota_badminton' => '32',
-        'batas_pendaftaran' => '2025-12-31'
-    ];
+// Cek jika event sudah lewat
+if ($today > $event['tanggal']) {
+    $pendaftaran_dibuka = false;
+    $alasan_tutup = "Event telah berlalu pada " . date('d F Y', strtotime($event['tanggal']));
 }
 
-// 1. CEK STATUS PENDAFTARAN
-if (($pengaturan['status_pendaftaran'] ?? 'buka') == 'tutup') {
-    $conn->close();
-    die("<h1 style='text-align:center; padding:50px;'>❌ PENDAFTARAN TELAH DITUTUP</h1>");
+// Cek apakah event sudah dimulai
+if (!empty($event['tanggal_mulai']) && $today < $event['tanggal_mulai']) {
+    $pendaftaran_dibuka = false;
+    $alasan_tutup = "Pendaftaran akan dibuka pada " . date('d F Y', strtotime($event['tanggal_mulai']));
 }
 
-// 2. HITUNG KUOTA YANG SUDAH TERISI
-$futsal_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Futsal' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
-$basket_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Basket' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
-$badminton_terdaftar = $conn->query("SELECT COUNT(*) as total FROM tim_lomba WHERE jenis_lomba = 'Badminton' AND status = 'active'")->fetch_assoc()['total'] ?? 0;
+// ============================================
+// 3. CEK KUOTA (UNTUK SISTEM WEBSITE)
+// ============================================
+$kuota_penuh = false;
+if ($pendaftaran_dibuka && empty($event['link_pendaftaran'])) {
+    // Hitung jumlah pendaftar
+    $query_pendaftar = "SELECT COUNT(*) as total FROM pendaftaran WHERE event_id = ? AND status != 'ditolak'";
+    $stmt = $conn->prepare($query_pendaftar);
+    $stmt->bind_param("i", $event_id);
+    $stmt->execute();
+    $result_pendaftar = $stmt->get_result();
+    $pendaftar = $result_pendaftar->fetch_assoc();
+    $jumlah_pendaftar = $pendaftar['total'];
+    
+    // Cek kuota
+    if ($event['kuota_peserta'] > 0 && $jumlah_pendaftar >= $event['kuota_peserta']) {
+        $kuota_penuh = true;
+        $alasan_tutup = "Kuota pendaftaran telah penuh";
+    }
+}
 
-// 3. CEK APAKAH KUOTA PENUH
-$kuota_futsal = intval($pengaturan['kuota_futsal'] ?? 16);
-$kuota_basket = intval($pengaturan['kuota_basket'] ?? 12);
-$kuota_badminton = intval($pengaturan['kuota_badminton'] ?? 32);
+// ============================================
+// 4. PROSES PENDAFTARAN JIKA FORM DISUBMIT
+// ============================================
+$success = false;
+$error = '';
+$pendaftaran_id = 0;
 
-$futsal_penuh = ($futsal_terdaftar >= $kuota_futsal);
-$basket_penuh = ($basket_terdaftar >= $kuota_basket);
-$badminton_penuh = ($badminton_terdaftar >= $kuota_badminton);
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && $pendaftaran_dibuka && !$kuota_penuh && empty($event['link_pendaftaran'])) {
+    
+    // AMBIL DATA DARI FORM BERDASARKAN TIPE
+    $tipe_pendaftaran = $event['tipe_pendaftaran'] ?? 'individu';
+    
+    if ($tipe_pendaftaran == 'individu') {
+        // PROSES PENDAFTARAN INDIVIDU
+        $nama = mysqli_real_escape_string($conn, $_POST['nama'] ?? '');
+        $nim = mysqli_real_escape_string($conn, $_POST['nim'] ?? '');
+        $email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
+        $no_hp = mysqli_real_escape_string($conn, $_POST['no_hp'] ?? '');
+        $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'] ?? '');
+        $angkatan = mysqli_real_escape_string($conn, $_POST['angkatan'] ?? '');
+        $motivasi = mysqli_real_escape_string($conn, $_POST['motivasi'] ?? '');
+        $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? $nama);
+        
+        // VALIDASI
+        if (empty($nama) || empty($email) || empty($no_hp)) {
+            $error = "Nama, email, dan nomor HP harus diisi!";
+        } else {
+            // Cek apakah sudah pernah mendaftar
+            $cek_query = "SELECT id FROM pendaftaran WHERE event_id = ? AND email = ?";
+            $stmt = $conn->prepare($cek_query);
+            $stmt->bind_param("is", $event_id, $email);
+            $stmt->execute();
+            $cek_result = $stmt->get_result();
+            
+            if ($cek_result->num_rows > 0) {
+                $error = "Anda sudah terdaftar pada event ini dengan email tersebut!";
+            } else {
+                // SIMPAN KE DATABASE
+                $insert_query = "INSERT INTO pendaftaran 
+                                (event_id, nama, nim, email, no_hp, jurusan, angkatan, motivasi, jumlah_anggota, nama_tim, tanggal_daftar, status) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW(), 'menunggu')";
+                $stmt = $conn->prepare($insert_query);
+                if (!$stmt) {
+                    $error = "Gagal mempersiapkan query: " . $conn->error;
+                } else {
+                    $stmt->bind_param("issssssss", $event_id, $nama, $nim, $email, $no_hp, $jurusan, $angkatan, $motivasi, $nama_tim);
+                    
+                    if ($stmt->execute()) {
+                        $success = true;
+                        $pendaftaran_id = $stmt->insert_id;
+                    } else {
+                        $error = "Gagal mendaftar: " . $conn->error;
+                    }
+                }
+            }
+        }
+        
+    } elseif ($tipe_pendaftaran == 'tim') {
+        // PROSES PENDAFTARAN TIM
+        $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? '');
+        $ketua_nama = mysqli_real_escape_string($conn, $_POST['ketua_nama'] ?? '');
+        $ketua_nim = mysqli_real_escape_string($conn, $_POST['ketua_nim'] ?? '');
+        $ketua_email = mysqli_real_escape_string($conn, $_POST['ketua_email'] ?? '');
+        $ketua_no_hp = mysqli_real_escape_string($conn, $_POST['ketua_no_hp'] ?? '');
+        $ketua_jurusan = mysqli_real_escape_string($conn, $_POST['ketua_jurusan'] ?? '');
+        $ketua_angkatan = mysqli_real_escape_string($conn, $_POST['ketua_angkatan'] ?? '');
+        
+        // AMBIL DATA ANGGOTA
+        $anggota_data = [];
+        $total_anggota = 1; // Ketua sudah dihitung
+        
+        // Loop untuk anggota tambahan
+        $max_anggota = $event['max_anggota'] ?? 1;
+        for ($i = 1; $i <= $max_anggota; $i++) {
+            if (isset($_POST["anggota_nama_$i"]) && !empty(trim($_POST["anggota_nama_$i"]))) {
+                $anggota_data[] = [
+                    'nama' => mysqli_real_escape_string($conn, $_POST["anggota_nama_$i"]),
+                    'nim' => mysqli_real_escape_string($conn, $_POST["anggota_nim_$i"] ?? ''),
+                    'jurusan' => mysqli_real_escape_string($conn, $_POST["anggota_jurusan_$i"] ?? ''),
+                    'angkatan' => mysqli_real_escape_string($conn, $_POST["anggota_angkatan_$i"] ?? '')
+                ];
+                $total_anggota++;
+            }
+        }
+        
+        // VALIDASI
+        if (empty($nama_tim) || empty($ketua_nama) || empty($ketua_email) || empty($ketua_no_hp)) {
+            $error = "Nama tim, nama ketua, email, dan nomor HP ketua harus diisi!";
+        } elseif ($total_anggota < ($event['min_anggota'] ?? 1)) {
+            $error = "Minimal anggota untuk tim ini adalah " . ($event['min_anggota'] ?? 1) . " orang!";
+        } elseif ($total_anggota > ($event['max_anggota'] ?? 1)) {
+            $error = "Maksimal anggota untuk tim ini adalah " . ($event['max_anggota'] ?? 1) . " orang!";
+        } else {
+            // Cek apakah tim sudah terdaftar
+            $cek_query = "SELECT id FROM pendaftaran WHERE event_id = ? AND nama_tim = ?";
+            $stmt = $conn->prepare($cek_query);
+            $stmt->bind_param("is", $event_id, $nama_tim);
+            $stmt->execute();
+            $cek_result = $stmt->get_result();
+            
+            if ($cek_result->num_rows > 0) {
+                $error = "Nama tim sudah digunakan! Silakan gunakan nama tim lain.";
+            } else {
+                // SIMPAN TIM KE DATABASE
+                $insert_query = "INSERT INTO pendaftaran 
+                                (event_id, nama_tim, nama, nim, email, no_hp, jurusan, angkatan, jumlah_anggota, tanggal_daftar, status) 
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'menunggu')";
+                $stmt = $conn->prepare($insert_query);
+                if (!$stmt) {
+                    $error = "Gagal mempersiapkan query: " . $conn->error;
+                } else {
+                    $stmt->bind_param("isssssssi", $event_id, $nama_tim, $ketua_nama, $ketua_nim, $ketua_email, 
+                                    $ketua_no_hp, $ketua_jurusan, $ketua_angkatan, $total_anggota);
+                    
+                    if ($stmt->execute()) {
+                        $pendaftaran_id = $stmt->insert_id;
+                        
+                        // SIMPAN DATA ANGGOTA KE TABEL ANGGOTA_TIM
+                        foreach ($anggota_data as $index => $anggota) {
+                            $insert_anggota = "INSERT INTO anggota_tim 
+                                              (pendaftaran_id, nama, nim, jurusan, angkatan, nomor_anggota) 
+                                              VALUES (?, ?, ?, ?, ?, ?)";
+                            $stmt2 = $conn->prepare($insert_anggota);
+                            $nomor_anggota = $index + 2;
+                            $stmt2->bind_param("issssi", $pendaftaran_id, $anggota['nama'], $anggota['nim'], 
+                                             $anggota['jurusan'], $anggota['angkatan'], $nomor_anggota);
+                            $stmt2->execute();
+                        }
+                        
+                        $success = true;
+                    } else {
+                        $error = "Gagal mendaftar tim: " . $conn->error;
+                    }
+                }
+            }
+        }
+    }
+}
 
-$conn->close();
+// ============================================
+// 5. TAMPILAN HTML - DIKEMBALIKAN KE STYLE ASLI
+// ============================================
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Formulir Pendaftaran Lomba</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    :root {
-      --primary: #0056b3;
-      --secondary: #e63946;
-      --success: #28a745;
-      --danger: #dc3545;
-      --warning: #ffc107;
-      --light-color: #fff;
-      --gray-light: #f5f7fa;
-      --dark: #343a40;
-      --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-      --hover-shadow: 0 15px 35px rgba(0, 0, 0, 0.12);
-    }
-
-    body {
-      background: linear-gradient(to bottom, #f0f1f3ff 80%, #ffffff 100%);
-      color: #333;
-      min-height: 100vh;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    .navbar {
-      background-color: var(--primary);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .navbar-nav .nav-link {
-      position: relative;
-      padding-bottom: 6px;
-    }
-
-    .navbar-nav .nav-link::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      bottom: 0;
-      width: 0;
-      height: 2px;
-      background-color: #ffffffff;
-      transition: all 0.3s ease;
-      transform: translateX(-50%);
-    }
-
-    .navbar-nav .nav-link:hover::after,
-    .navbar-nav .nav-link.active::after {
-      width: 100%;
-    }
-
-    .navbar-brand img {
-      height: 50px;
-    }
-
-    .form-container {
-      background-color: white;
-      border-radius: 16px;
-      box-shadow: var(--card-shadow);
-      padding: 40px;
-      width: 100%;
-      max-width: 900px;
-      margin: 60px auto 30px auto;
-      transition: box-shadow 0.3s ease;
-    }
-
-    .form-container:hover {
-      box-shadow: var(--hover-shadow);
-    }
-
-    h2 {
-      text-align: center;
-      color: var(--primary);
-      margin: 50px 0 30px 0;
-      font-size: 3.4rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      position: relative;
-      padding-bottom: 15px;
-    }
-
-    h2:after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 100px;
-      height: 4px;
-      background: linear-gradient(to right, var(--primary), var(--secondary));
-      border-radius: 2px;
-    }
-
-    .form-group label {
-      color: #1565c0 !important;
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-bottom: 8px;
-      display: block;
-    }
-
-    .form-group label i {
-      color: #1565c0;
-      margin-right: 8px;
-    }
-
-    .input-with-icon {
-      position: relative;
-      margin-top: 5px;
-    }
-
-    .input-with-icon i {
-      position: absolute;
-      left: 15px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: #777;
-    }
-
-    .input-with-icon input {
-      width: 100%;
-      padding: 14px 14px 14px 45px;
-      border: 2px solid #ddd;
-      border-radius: 10px;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-    }
-
-    .input-with-icon input:focus {
-      border-color: #1e88e5;
-      box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
-      outline: none;
-    }
-
-    .form-header {
-      text-align: center;
-      margin-bottom: 60px;
-    }
-
-    .form-header p {
-      color: #666;
-      font-size: 1.1rem;
-    }
-
-    form {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .form-row {
-      display: flex;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    .form-group {
-      flex: 1;
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 600;
-      color: #444;
-      font-size: 1.7rem;
-    }
-
-    .input-with-icon input,
-    .input-with-icon select {
-      padding-left: 45px;
-    }
-
-    input,
-    select {
-      width: 100%;
-      padding: 14px;
-      border: 2px solid #e1e5eb;
-      border-radius: 10px;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      background-color: #f9f9f9;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: var(--primary);
-      outline: none;
-      background-color: #fff;
-      box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.1);
-    }
-
-    .button-group {
-      display: flex;
-      gap: 15px;
-      margin-top: 30px;
-      border-radius: 40px;
-    }
-
-    button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 10px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      border-radius: 30px;
-    }
-
-    button[type="submit"] {
-      background: linear-gradient(135deg, var(--primary), #0066cc);
-      color: white;
-      border-radius: 30px;
-      padding: 12px;
-    }
-
-    button[type="submit"]:hover {
-      background: linear-gradient(135deg, #0066cc, var(--primary));
-      transform: translateY(-3px);
-      box-shadow: 0 7px 20px rgba(0, 74, 173, 0.4);
-    }
-
-    .back-button {
-      background-color: #6c757d;
-      color: white;
-    }
-
-    .back-button:hover {
-      background-color: #5a6268;
-      transform: translateY(-3px);
-      box-shadow: 0 7px 20px rgba(108, 117, 125, 0.4);
-    }
-
-    .lomba-section {
-      margin-top: 20px;
-      padding: 25px;
-      background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-      border-radius: 12px;
-      border-left: 5px solid var(--primary);
-      margin-bottom: 25px;
-    }
-
-    .lomba-section h4 {
-      color: var(--primary);
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .lomba-cards {
-      display: flex;
-      gap: 15px;
-      margin-top: 15px;
-    }
-
-    .lomba-card {
-      flex: 1;
-      background: white;
-      border-radius: 10px;
-      padding: 10px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      border: 2px solid transparent;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-    }
-
-    .lomba-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-    }
-
-    .lomba-card.active {
-      border-color: var(--primary);
-      background: linear-gradient(135deg, #f0f7ff, #e1eeff);
-    }
-
-    .lomba-icon {
-      font-size: 2.3rem;
-      margin-bottom: 10px;
-      color: var(--primary);
-    }
-
-    .lomba-card h5 {
-      color: var(--primary);
-      margin-bottom: 1px;
-    }
-
-    .lomba-card p {
-      color: #666;
-      font-size: 0.9rem;
-    }
-
-    .anggota-section {
-      margin-top: 20px;
-      padding: 25px;
-      background-color: white;
-      border-radius: 12px;
-      border: 2px solid #e1e5eb;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-
-    .anggota-section h4 {
-      color: var(--primary);
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .add-anggota {
-      background: linear-gradient(135deg, var(--success), #20c997);
-      color: white;
-      padding: 12px 20px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: 600;
-      margin-top: 10px;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      justify-content: center;
-    }
-
-    .add-anggota:hover {
-      background: linear-gradient(135deg, #20c997, var(--success));
-      transform: translateY(-3px);
-      box-shadow: 0 7px 15px rgba(40, 167, 69, 0.3);
-    }
-
-    .anggota-item {
-      background: linear-gradient(135deg, #f8f9fa, #ffffff);
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      border: 2px solid #e9ecef;
-      position: relative;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-      transition: all 0.3s ease;
-    }
-
-    .anggota-item:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
-    }
-
-    .anggota-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #f1f3f4;
-    }
-
-    .anggota-title {
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 1.2rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .remove-anggota {
-      background: linear-gradient(135deg, var(--danger), #e52d27);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    .remove-anggota:hover {
-      background: linear-gradient(135deg, #e52d27, var(--danger));
-      transform: scale(1.05);
-    }
-
-    .anggota-fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
-
-    .anggota-fields .form-group {
-      margin-bottom: 0;
-    }
-
-    .counter-info {
-      text-align: center;
-      margin: 15px 0;
-      color: #666;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      background: #f8f9fa;
-      padding: 10px;
-      border-radius: 8px;
-    }
-
-    .max-warning {
-      color: var(--danger);
-      font-weight: 600;
-    }
-
-    .lomba-info {
-      background: linear-gradient(135deg, #e7f3ff, #d4e7ff);
-      padding: 20px;
-      border-radius: 12px;
-      margin-bottom: 20px;
-      border-left: 5px solid var(--primary);
-      display: none;
-    }
-
-    .lomba-info h4 {
-      color: var(--primary);
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .lomba-info p {
-      color: #555;
-      margin-bottom: 5px;
-    }
-
-    /* CSS TAMBAHAN UNTUK KUOTA */
-.lomba-card.disabled {
-    opacity: 0.5;
-    cursor: not-allowed !important;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-color: #ccc !important;
-}
-
-.lomba-card.disabled:hover {
-    transform: none !important;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05) !important;
-}
-
-.kuota-info {
-    text-align: center;
-    margin: 10px 0 20px;
-    padding: 10px;
-    background: #f8f9fa;
-    border-radius: 10px;
-    font-size: 0.9rem;
-    color: #666;
-}
-
-.kuota-info strong {
-    color: #0056b3;
-}
-
-    /* Footer - Diperbarui sesuai gambar */
-    footer {
-      background-color: #004aad;
-      color: white;
-      padding: 40px 0 20px;
-      margin-top: 50px;
-    }
-
-    .footer-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 50px;
-    }
-
-    .footer-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 30px;
-    }
-
-    .footer-info {
-      flex: 1;
-      min-width: 300px;
-    }
-
-    .footer-info h3 {
-      color: white;
-      font-size: 1.5rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-    }
-
-    .footer-info p {
-      color: rgba(255, 255, 255, 0.9);
-      margin-bottom: 8px;
-      line-height: 1.6;
-    }
-
-    .footer-links {
-      flex: 0 0 200px;
-    }
-
-    .footer-links h4 {
-      color: white;
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin-bottom: 15px;
-    }
-
-    .footer-links ul {
-      list-style: none;
-      padding-left: 0;
-    }
-
-    .footer-links li {
-      margin-bottom: 10px;
-    }
-
-    .footer-links a {
-      color: rgba(255, 255, 255, 0.9);
-      text-decoration: none;
-      transition: color 0.2s;
-    }
-
-    .footer-links a:hover {
-      color: white;
-      text-decoration: underline;
-    }
-
-    .footer-separator {
-      border: none;
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .footer-bottom {
-      text-align: center;
-      padding-top: 20px;
-      color: rgba(255, 255, 255, 0.8);
-      font-size: 0.9rem;
-    }
-
-    /* Animations */
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .form-container {
-      animation: fadeIn 0.8s ease forwards;
-    }
-
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .anggota-item {
-      animation: slideIn 0.3s ease forwards;
-    }
-
-    /* Responsif untuk HP */
-    @media (max-width: 768px) {
-      .form-container {
-        padding: 25px;
-        margin: 10px;
-      }
-
-      h2 {
-        font-size: 1.8rem;
-      }
-
-      .button-group {
-        flex-direction: column;
-      }
-
-      .anggota-fields {
-        grid-template-columns: 1fr;
-      }
-
-      .anggota-header {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
-      }
-
-      .form-row {
-        flex-direction: column;
-        gap: 0;
-      }
-
-      .lomba-cards {
-        flex-direction: column;
-      }
-
-      .footer-container {
-        padding: 0 20px;
-      }
-
-      .footer-top {
-        flex-direction: column;
-        gap: 30px;
-      }
-
-      .footer-info, .footer-links {
-        width: 100%;
-      }
-
-      .footer-links {
-        margin-top: 10px;
-      }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendaftaran <?php echo htmlspecialchars($event['judul']); ?> - Event Kampus</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --primary-dark: #003d82;
+            --secondary-color: #f8f9fa;
+            --accent-color: #ffc107;
+            --accent-dark: #e0a800;
+            --text-color: #333;
+            --light-color: #fff;
+            --gray-light: #f5f7fa;
+            --gray-medium: #6c757d;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            background-color: var(--gray-light);
+            padding-top: 0;
+        }
+        
+        /* HEADER PENDAFTARAN */
+        .registration-header {
+            background: linear-gradient(rgba(0, 86, 179, 0.95), rgba(0, 61, 130, 0.95)), 
+                        url('https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 60px 0 40px;
+            margin-bottom: 30px;
+            border-bottom: 5px solid var(--accent-color);
+        }
+        
+        .registration-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .registration-subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        /* FORM CONTAINER */
+        .form-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 40px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .form-header {
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .form-header h2 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.8rem;
+        }
+        
+        .form-header h4 {
+            margin: 10px 0 0;
+            font-weight: 400;
+            opacity: 0.9;
+        }
+        
+        .form-body {
+            padding: 30px;
+        }
+        
+        /* EVENT INFO CARD */
+        .event-info-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-left: 5px solid var(--primary-color);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        .kategori-badge {
+            background: <?php echo $event['warna'] ?? '#0056b3'; ?>;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        .info-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            width: 120px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .info-value {
+            flex: 1;
+            color: #555;
+        }
+        
+        /* FORM STYLES */
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent-color);
+            font-size: 1.3rem;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #444;
+        }
+        
+        .required:after {
+            content: " *";
+            color: #dc3545;
+        }
+        
+        /* ANGGOTA TIM SECTION */
+        .anggota-section {
+            background: #f0f8ff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 2px dashed #b8d4ff;
+        }
+        
+        .anggota-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+        }
+        
+        .anggota-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .btn-add-anggota {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 15px auto;
+            transition: all 0.3s;
+            font-size: 1.2rem;
+        }
+        
+        .btn-add-anggota:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+            box-shadow: 0 5px 15px rgba(0,86,179,0.3);
+        }
+        
+        .btn-remove-anggota {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            font-size: 0.9rem;
+            margin-top: 15px;
+            transition: all 0.3s;
+        }
+        
+        .btn-remove-anggota:hover {
+            background: #c82333;
+        }
+        
+        .anggota-counter {
+            background: var(--primary-color);
+            color: white;
+            border-radius: 20px;
+            padding: 8px 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+        
+        /* MESSAGE BOXES */
+        .success-box {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            margin: 30px 0;
+        }
+        
+        .error-box {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 2px solid #dc3545;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 2px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        /* FOOTER */
+        .registration-footer {
+            background: var(--primary-color);
+            color: white;
+            padding: 30px 0;
+            margin-top: 50px;
+            text-align: center;
+        }
+        
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            margin: 0 15px;
+        }
+        
+        .footer-links a:hover {
+            color: var(--accent-color);
+            text-decoration: underline;
+        }
+        
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            .registration-header {
+                padding: 40px 0 30px;
+            }
+            
+            .registration-title {
+                font-size: 2rem;
+            }
+            
+            .form-body {
+                padding: 20px;
+            }
+            
+            .event-info-card {
+                padding: 20px;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .info-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
 </head>
-
 <body>
-  
-  <!-- Navbar Bootstrap Sama dengan Index.php -->
-  <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #0056b3;">
+    <!-- HEADER -->
+    <div class="registration-header">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1 class="registration-title">
+                        <i class="fas fa-user-plus me-3"></i>
+                        Pendaftaran Event Kampus
+                    </h1>
+                    <p class="registration-subtitle">
+                        Isi formulir di bawah untuk mendaftar event ini
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-inline-block bg-white text-dark rounded-pill px-4 py-2">
+                        <i class="fas fa-calendar-check me-2 text-primary"></i>
+                        <strong>Event ID:</strong> <?php echo str_pad($event_id, 4, '0', STR_PAD_LEFT); ?>
+                    </div>
+                </div>
+            </div>
+            
+            <?php if (isset($info_message)): ?>
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                <?php echo $info_message; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+    
+    <!-- MAIN CONTENT -->
     <div class="container">
-      <a class="navbar-brand" href="index.php">
-        <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" 
-             height="50" alt="Politeknik Negeri Batam">
-      </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link" href="index.php">Beranda</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link active" href="daftar.php">Pendaftaran</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="admin/login.php">Admin</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
-
-  <div class="container">
-    <h2><i class="fas fa-trophy"></i> Formulir Pendaftaran</h2>
-    <div class="form-header">
-      <p>Daftarkan tim Anda untuk mengikuti Lomba Antar Jurusan Politeknik Negeri Batam</p>
-    </div>
-
-    <form id="formPendaftaran" method="POST" action="proses_daftar.php">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="nim"><i class="fas fa-id-card"></i> NIM:</label>
-          <div class="input-with-icon">
-            <i class="fas fa-id-card"></i>
-            <input type="text" id="nim" name="nim" required placeholder="Masukkan NIM Anda">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="nama"><i class="fas fa-user"></i> Nama Ketua:</label>
-          <div class="input-with-icon">
-            <i class="fas fa-user"></i>
-            <input type="text" id="nama" name="nama" required placeholder="Masukkan nama anda">
-          </div>
-        </div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label for="prodi"><i class="fas fa-graduation-cap"></i> Program Studi:</label>
-          <div class="input-with-icon">
-            <i class="fas fa-graduation-cap"></i>
-            <input type="text" id="prodi" name="prodi" required placeholder="Masukkan program studi Anda">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="wa"><i class="fas fa-phone"></i> Nomor WA Aktif:</label>
-          <div class="input-with-icon">
-            <i class="fas fa-phone"></i>
-            <input type="tel" id="wa" name="wa" required placeholder="Contoh: 081234567890">
-          </div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="ketua"><i class="fas fa-crown"></i> Nama Tim:</label>
-        <div class="input-with-icon">
-          <i class="fas fa-crown"></i>
-          <input type="text" id="ketua" name="ketua" required placeholder="Masukkan Nama tim anda">
-        </div>
-      </div>
-
-      <!-- TAMBAHKAN INPUT UNTUK TAHUN ANGKATAN KETUA -->
-      <div class="form-group">
-        <label for="tahun"><i class="fas fa-calendar-alt"></i> Tahun Angkatan (Ketua):</label>
-        <div class="input-with-icon">
-          <i class="fas fa-calendar-alt"></i>
-          <select id="tahun" name="tahun" required>
-            <option value="">Pilih Tahun</option>
-            <option value="2022">2022</option>
-            <option value="2023">2023</option>
-            <option value="2024">2024</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="lomba-section">
-        <h4><i class="fas fa-running"></i> Pilih Jenis Lomba</h4>
-        <!-- INFO KUOTA TERSEDIA -->
-<div class="kuota-info">
-  <i class="fas fa-info-circle"></i> 
-  Kuota tersedia: 
-  <strong>Futsal (<?php echo $kuota_futsal - $futsal_terdaftar; ?>)</strong> | 
-  <strong>Basket (<?php echo $kuota_basket - $basket_terdaftar; ?>)</strong> | 
-  <strong>Badminton (<?php echo $kuota_badminton - $badminton_terdaftar; ?>)</strong>
-</div>
-
-<div class="lomba-cards">
-  <!-- FUTSAL -->
-  <div class="lomba-card <?php echo $futsal_penuh ? 'disabled' : ''; ?>" 
-       data-lomba="Futsal"
-       <?php if ($futsal_penuh) echo 'title="Kuota telah penuh"'; ?>>
-    <div class="lomba-icon">
-      <i class="fas fa-futbol"></i>
-    </div>
-    <h5>Futsal</h5>
-    <p><?php echo $futsal_terdaftar . '/' . $kuota_futsal; ?> Tim</p>
-    <?php if ($futsal_penuh): ?>
-    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
-    <?php endif; ?>
-  </div>
-  
-  <!-- BASKET -->
-  <div class="lomba-card <?php echo $basket_penuh ? 'disabled' : ''; ?>" 
-       data-lomba="Basket"
-       <?php if ($basket_penuh) echo 'title="Kuota telah penuh"'; ?>>
-    <div class="lomba-icon">
-      <i class="fas fa-basketball-ball"></i>
-    </div>
-    <h5>Basket</h5>
-    <p><?php echo $basket_terdaftar . '/' . $kuota_basket; ?> Tim</p>
-    <?php if ($basket_penuh): ?>
-    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
-    <?php endif; ?>
-  </div>
-  
-  <!-- BADMINTON -->
-  <div class="lomba-card <?php echo $badminton_penuh ? 'disabled' : ''; ?>" 
-       data-lomba="Badminton"
-       <?php if ($badminton_penuh) echo 'title="Kuota telah penuh"'; ?>>
-    <div class="lomba-icon">
-      <i class="fas fa-table-tennis"></i>
-    </div>
-    <h5>Badminton</h5>
-    <p><?php echo $badminton_terdaftar . '/' . $kuota_badminton; ?> Tim</p>
-    <?php if ($badminton_penuh): ?>
-    <span style="color:#dc3545; font-size:0.8rem;">KUOTA PENUH</span>
-    <?php endif; ?>
-  </div>
-</div>
-        <input type="hidden" id="lomba" name="jenis_lomba" required>
-      </div>
-
-      <div class="lomba-info" id="lombaInfo">
-        <h4><i class="fas fa-info-circle"></i> Informasi Lomba</h4>
-        <p id="infoText">Pilih jenis lomba untuk melihat informasi detail</p>
-      </div>
-
-      <div class="anggota-section">
-        <h4><i class="fas fa-users"></i> Anggota Tim</h4>
-        <div class="counter-info">
-          <i class="fas fa-user-friends"></i> Jumlah anggota: <span id="anggotaCount">0</span>
-          <span id="maxAnggotaText">/10</span>
-        </div>
-        <div id="anggotaContainer">
-          <!-- Anggota tim akan ditambahkan di sini -->
-        </div>
-        <button type="button" class="add-anggota" id="tambahAnggota">
-          <i class="fas fa-plus"></i> Tambah Anggota
-        </button>
-      </div>
-
-      <div class="button-group">
-        <button type="submit"><i class="fas fa-paper-plane"></i> Daftar</button>
-        <button type="button" class="back-button" onclick="history.back()">
-          <i class="fas fa-arrow-left"></i> Kembali
-        </button>
-      </div>
-    </form>
-  </div>
-
-  <!-- Footer sesuai gambar dengan warna biru -->
-  <footer>
-    <div class="footer-container">
-      <div class="footer-top">
-        <div class="footer-info">
-          <h3>Politeknik Negeri Batam</h3>
-          <p>Jl. Ahmad Yani, Batam Kota, Batam 29461</p>
-          <p>Kepulauan Riau, Indonesia</p>
-          <p>Telp: (0778) 469856</p>
-          <p>Email: info@polibatam.ac.id</p>
-        </div>
-        
-        <div class="footer-links">
-          <h4>Tautan Cepat</h4>
-          <ul>
-            <!-- Tautan Beranda -->
-            <li><a href="index.php" style="color: white;">Beranda</a></li>
-            <!-- Tautan Pendaftaran -->
-            <li><a href="daftar.php" style="color: white;">Pendaftaran</a></li>
-          </ul>
-        </div>
-      </div>
-      
-      <hr class="footer-separator">
-      
-      <div class="footer-bottom">
-        <p>&copy; 2025 Politeknik Negeri Batam. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', function () {
-    const anggotaContainer = document.getElementById('anggotaContainer');
-    const tambahAnggotaBtn = document.getElementById('tambahAnggota');
-    const anggotaCountSpan = document.getElementById('anggotaCount');
-    const maxAnggotaText = document.getElementById('maxAnggotaText');
-    const lombaCards = document.querySelectorAll('.lomba-card');
-    const lombaInput = document.getElementById('lomba');
-    const lombaInfo = document.getElementById('lombaInfo');
-    const infoText = document.getElementById('infoText');
-
-    let anggotaCount = 0;
-    let maxAnggota = 10;
-    let currentLomba = '';
-
-    // Informasi untuk setiap lomba
-    const lombaDetails = {
-        'Futsal': {
-            maxAnggota: 10,
-            info: 'Futsal: Maksimal 10 pemain (5 pemain utama + 5 cadangan) Minimal 7 anggota. Durasi pertandingan 2x20 menit waktu kotor.',
-            icon: 'futbol',
-            color: '#004aad'
-        },
-        'Basket': {
-            maxAnggota: 12,
-            info: 'Basket: Maksimal 12 pemain (5 pemain utama + 7 cadangan) Minimal 7 anggota. Durasi pertandingan 3x10 menit.',
-            icon: 'basketball-ball',
-            color: '#e63946'
-        },
-        'Badminton': {
-            maxAnggota: 2,
-            info: 'Badminton Ganda: Maksimal 2 pemain per tim. Sistem gugur dengan best of three sets.',
-            icon: 'TableTennisPaddleBall',
-            color: '#28a745'
-        }
-    };
-
-    // ============ VALIDASI INPUT REAL-TIME ============
-    
-    // 1. NAMA KETUA - Hanya huruf dan spasi
-    const namaInput = document.getElementById('nama');
-    if (namaInput) {
-        namaInput.addEventListener('input', function() {
-            // Hapus angka dan karakter khusus, kecuali spasi
-            this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
-        });
-    }
-
-    // 2. NIM - Hanya angka (6-10 digit)
-    const nimInput = document.getElementById('nim');
-    if (nimInput) {
-        nimInput.addEventListener('input', function() {
-            // Hapus semua yang bukan angka
-            this.value = this.value.replace(/\D/g, '');
+        <!-- EVENT INFO -->
+        <div class="event-info-card">
+            <span class="kategori-badge">
+                <i class="<?php echo $event['ikon'] ?? 'fas fa-calendar'; ?> me-2"></i>
+                <?php echo htmlspecialchars($event['kategori_nama']); ?>
+            </span>
             
-            // Batasi panjang maksimal 10 digit
-            if (this.value.length > 10) {
-                this.value = this.value.slice(0, 10);
-            }
-        });
-    }
-
-    // 3. PRODI - Hanya huruf, spasi, dan tanda hubung
-    const prodiInput = document.getElementById('prodi');
-    if (prodiInput) {
-        prodiInput.addEventListener('input', function() {
-            // Hanya huruf, spasi, dan tanda hubung
-            this.value = this.value.replace(/[^a-zA-Z\s\-]/g, '');
-        });
-    }
-
-    // 4. NOMOR WA - Hanya angka
-    const waInput = document.getElementById('wa');
-    if (waInput) {
-        waInput.addEventListener('input', function() {
-            // Hapus semua yang bukan angka
-            let value = this.value.replace(/\D/g, '');
+            <h3 class="mb-3" style="color: var(--primary-color);"><?php echo htmlspecialchars($event['judul']); ?></h3>
             
-            // Pastikan tidak melebihi 13 digit (62xxxxxxxxxxx)
-            if (value.length > 13) {
-                value = value.slice(0, 13);
-            }
-            
-            this.value = value;
-        });
-    }
-
-    // 5. NAMA TIM - Boleh huruf, angka, spasi (sesuai kode awal)
-    const namaTimInput = document.getElementById('ketua');
-    if (namaTimInput) {
-        namaTimInput.addEventListener('input', function() {
-            // Boleh huruf, angka, spasi (sesuai kode awal)
-            this.value = this.value.replace(/[^a-zA-Z0-9\s]/g, '');
-        });
-    }
-
-    // Event listener untuk kartu lomba
-    lombaCards.forEach(card => {
-    card.addEventListener('click', function () {
-        // CEK APAKAH KARTU DISABLED (KUOTA PENUH)
-        if (this.classList.contains('disabled')) {
-            const lombaName = this.getAttribute('data-lomba');
-            alert(`❌ Maaf, kuota untuk lomba ${lombaName} sudah penuh!`);
-            return;
-        }
-        
-        const selectedLomba = this.getAttribute('data-lomba');
-
-            // Hapus kelas active dari semua kartu
-            lombaCards.forEach(c => c.classList.remove('active'));
-
-            // Tambah kelas active ke kartu yang dipilih
-            this.classList.add('active');
-
-            // Set nilai input hidden
-            lombaInput.value = selectedLomba;
-            currentLomba = selectedLomba;
-
-            // Tampilkan informasi lomba
-            if (currentLomba && lombaDetails[currentLomba]) {
-                maxAnggota = lombaDetails[currentLomba].maxAnggota;
-                infoText.textContent = lombaDetails[currentLomba].info;
-                maxAnggotaText.textContent = `/${maxAnggota}`;
-                lombaInfo.style.display = 'block';
-
-                // Reset anggota jika melebihi batas baru
-                if (anggotaCount > maxAnggota) {
-                    const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
-                    for (let i = maxAnggota; i < anggotaItems.length; i++) {
-                        anggotaItems[i].remove();
-                    }
-                    anggotaCount = maxAnggota;
-                    updateCounter();
-                    updateAnggotaNumbers();
-                }
-
-                updateTambahButton();
-            }
-        });
-    });
-
-    // Fungsi untuk menambah anggota
-    function tambahAnggota() {
-        if (!currentLomba) {
-            alert('Pilih jenis lomba terlebih dahulu!');
-            return;
-        }
-
-        if (anggotaCount >= maxAnggota) {
-            alert(`Maksimal ${maxAnggota} anggota untuk lomba ${currentLomba}!`);
-            return;
-        }
-
-        anggotaCount++;
-        updateCounter();
-
-        const anggotaItem = document.createElement('div');
-        anggotaItem.className = 'anggota-item';
-        anggotaItem.innerHTML = `
-          <div class="anggota-header">
-            <span class="anggota-title"><i class="fas fa-user"></i> Anggota ${anggotaCount}</span>
-            ${anggotaCount > 1 ? '<button type="button" class="remove-anggota"><i class="fas fa-times"></i> Hapus</button>' : ''}
-          </div>
-          <div class="anggota-fields">
-            <div class="form-group">
-              <label for="anggota_nama_${anggotaCount}">Nama Lengkap</label>
-              <input type="text" id="anggota_nama_${anggotaCount}" name="anggota_nama[]" required placeholder="Nama lengkap anggota">
-            </div>
-            <div class="form-group">
-              <label for="anggota_nim_${anggotaCount}">NIM</label>
-              <input type="text" id="anggota_nim_${anggotaCount}" name="anggota_nim[]" required placeholder="NIM anggota">
-            </div>
-            <div class="form-group">
-              <label for="anggota_prodi_${anggotaCount}">Program Studi</label>
-              <input type="text" id="anggota_prodi_${anggotaCount}" name="anggota_prodi[]" required placeholder="Program studi anggota">
-            </div>
-            <div class="form-group">
-              <label for="anggota_posisi_${anggotaCount}">Tahun Angkatan</label>
-              <select id="anggota_posisi_${anggotaCount}" name="anggota_posisi[]" required>
-                ${getPosisiOptions(currentLomba)}
-              </select>
-            </div>
-          </div>
-        `;
-
-        anggotaContainer.appendChild(anggotaItem);
-
-        // ============ VALIDASI INPUT ANGGOTA BARU ============
-        // Validasi Nama Anggota (hanya huruf)
-        const anggotaNamaInput = anggotaItem.querySelector(`#anggota_nama_${anggotaCount}`);
-        if (anggotaNamaInput) {
-            anggotaNamaInput.addEventListener('input', function() {
-                this.value = this.value.replace(/[^a-zA-Z\s]/g, '');
-            });
-        }
-
-        // Validasi NIM Anggota (hanya angka)
-        const anggotaNimInput = anggotaItem.querySelector(`#anggota_nim_${anggotaCount}`);
-        if (anggotaNimInput) {
-            anggotaNimInput.addEventListener('input', function() {
-                this.value = this.value.replace(/\D/g, '');
-                if (this.value.length > 10) {
-                    this.value = this.value.slice(0, 10);
-                }
-            });
-        }
-
-        // Validasi Prodi Anggota (hanya huruf)
-        const anggotaProdiInput = anggotaItem.querySelector(`#anggota_prodi_${anggotaCount}`);
-        if (anggotaProdiInput) {
-            anggotaProdiInput.addEventListener('input', function() {
-                this.value = this.value.replace(/[^a-zA-Z\s\-]/g, '');
-            });
-        }
-
-        // Tambah event listener untuk tombol hapus
-        const removeBtn = anggotaItem.querySelector('.remove-anggota');
-        if (removeBtn) {
-            removeBtn.addEventListener('click', function () {
-                hapusAnggota(anggotaItem);
-            });
-        }
-
-        updateTambahButton();
-    }
-
-    // Fungsi untuk mendapatkan opsi tahun angkatan
-    function getPosisiOptions(lomba) {
-        return `
-          <option value="2022">2022</option>
-          <option value="2023">2023</option>
-          <option value="2024">2024</option>
-          <option value="2025">2025</option>
-          <option value="2026">2026</option>
-        `;
-    }
-
-    // Fungsi untuk menghapus anggota
-    function hapusAnggota(anggotaItem) {
-        anggotaItem.remove();
-        anggotaCount--;
-        updateCounter();
-        updateAnggotaNumbers();
-        updateTambahButton();
-    }
-
-    // Fungsi untuk memperbarui nomor anggota
-    function updateAnggotaNumbers() {
-        const anggotaItems = anggotaContainer.querySelectorAll('.anggota-item');
-        anggotaItems.forEach((item, index) => {
-            const title = item.querySelector('.anggota-title');
-            title.innerHTML = `<i class="fas fa-user"></i> Anggota ${index + 1}`;
-
-            // Update input IDs dan names
-            const inputs = item.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                const baseName = input.name.replace(/\[\]$/, '');
-                input.name = `${baseName}[]`;
-                input.id = `${baseName}_${index + 1}`;
-            });
-        });
-    }
-
-    // Fungsi untuk memperbarui counter
-    function updateCounter() {
-        anggotaCountSpan.textContent = anggotaCount;
-        if (anggotaCount >= maxAnggota) {
-            anggotaCountSpan.classList.add('max-warning');
-        } else {
-            anggotaCountSpan.classList.remove('max-warning');
-        }
-    }
-
-    // Fungsi untuk update status tombol tambah
-    function updateTambahButton() {
-        if (anggotaCount >= maxAnggota) {
-            tambahAnggotaBtn.disabled = true;
-            tambahAnggotaBtn.style.background = 'linear-gradient(135deg, #6c757d, #5a6268)';
-            tambahAnggotaBtn.innerHTML = '<i class="fas fa-ban"></i> Maksimal Anggota';
-        } else {
-            tambahAnggotaBtn.disabled = false;
-            tambahAnggotaBtn.style.background = '';
-            tambahAnggotaBtn.innerHTML = '<i class="fas fa-plus"></i> Tambah Anggota';
-        }
-    }
-
-    // Event listener untuk tombol tambah anggota
-    tambahAnggotaBtn.addEventListener('click', tambahAnggota);
-
-    // Event listener untuk tombol Daftar
-    const btnDaftar = document.querySelector('#formPendaftaran button[type="submit"]');
-    
-    if (btnDaftar) {
-        btnDaftar.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log("Tombol Daftar diklik!");
-            
-            // 1. Validasi lomba dipilih
-            if (!currentLomba) {
-                alert('❌ Pilih jenis lomba terlebih dahulu!');
-                return;
-            }
-             // 2. CEK KUOTA PENUH
-        const selectedCard = document.querySelector(`.lomba-card[data-lomba="${currentLomba}"]`);
-        if (selectedCard && selectedCard.classList.contains('disabled')) {
-            alert(`❌ Maaf, kuota untuk lomba ${currentLomba} sudah penuh!`);
-            return;
-        }
-            // 3. Pastikan input hidden lomba terisi
-            document.getElementById('lomba').value = currentLomba;
-            
-            // 4. Validasi tahun angkatan ketua
-            const tahunKetua = document.getElementById('tahun');
-            if (!tahunKetua || !tahunKetua.value) {
-                alert('❌ Pilih tahun angkatan ketua tim!');
-                tahunKetua?.focus();
-                return;
-            }
-
-            // 5. Validasi minimal anggota
-            const minAnggota = currentLomba === 'Badminton' ? 2 : 1;
-            if (anggotaCount < minAnggota) {
-                alert(`❌ Untuk lomba ${currentLomba}, minimal ${minAnggota} anggota tim!`);
-                return;
-            }
-
-            // 6. Validasi semua input required
-            const requiredInputs = document.querySelectorAll('#formPendaftaran input[required], #formPendaftaran select[required]');
-            let semuaValid = true;
-            let firstInvalid = null;
-            
-            requiredInputs.forEach(input => {
-                if (!input.value.trim()) {
-                    semuaValid = false;
-                    input.style.borderColor = 'red';
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="info-row">
+                        <span class="info-label"><i class="far fa-calendar-alt me-2"></i>Tanggal:</span>
+                        <span class="info-value"><?php echo date('d F Y', strtotime($event['tanggal'])); ?></span>
+                    </div>
                     
-                    if (!firstInvalid) {
-                        firstInvalid = input;
-                    }
-                }
-            });
+                    <?php if (!empty($event['waktu'])): ?>
+                    <div class="info-row">
+                        <span class="info-label"><i class="far fa-clock me-2"></i>Waktu:</span>
+                        <span class="info-value"><?php echo date('H:i', strtotime($event['waktu'])); ?> WIB</span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <div class="info-row">
+                        <span class="info-label"><i class="fas fa-map-marker-alt me-2"></i>Lokasi:</span>
+                        <span class="info-value"><?php echo htmlspecialchars($event['lokasi']); ?></span>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <?php if ($event['biaya_pendaftaran'] > 0): ?>
+                    <div class="info-row">
+                        <span class="info-label"><i class="fas fa-money-bill-wave me-2"></i>Biaya:</span>
+                        <span class="info-value h5 text-success mb-0">Rp <?php echo number_format($event['biaya_pendaftaran'], 0, ',', '.'); ?></span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($event['kuota_peserta'] > 0): ?>
+                    <div class="info-row">
+                        <span class="info-label"><i class="fas fa-users me-2"></i>Kuota:</span>
+                        <span class="info-value">
+                            <span class="badge bg-primary rounded-pill"><?php echo number_format($jumlah_pendaftar ?? 0, 0, ',', '.'); ?></span>
+                            / <?php echo number_format($event['kuota_peserta'], 0, ',', '.'); ?> peserta
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
+                    <div class="info-row">
+                        <span class="info-label"><i class="fas fa-users me-2"></i>Tipe:</span>
+                        <span class="info-value">
+                            <span class="badge bg-info">Pendaftaran Tim</span>
+                            <small class="d-block mt-1">
+                                Minimal <?php echo $event['min_anggota']; ?> orang | 
+                                Maksimal <?php echo $event['max_anggota']; ?> orang
+                            </small>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <!-- FORM CONTAINER -->
+        <div class="form-container">
+            <!-- HEADER -->
+            <div class="form-header">
+                <h2><i class="fas fa-file-signature me-2"></i>Formulir Pendaftaran</h2>
+                <h4>Lengkapi data diri Anda dengan benar</h4>
+            </div>
             
-            if (!semuaValid) {
-                alert('❌ Harap isi semua data yang diperlukan!');
-                if (firstInvalid) {
-                    firstInvalid.focus();
-                }
+            <!-- BODY -->
+            <div class="form-body">
+                <?php if (!$pendaftaran_dibuka || $kuota_penuh): ?>
+                    <!-- PENDAFTARAN TUTUP / KUOTA PENUH -->
+                    <div class="error-box text-center">
+                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
+                        <h4>Pendaftaran Tidak Tersedia</h4>
+                        <p class="mb-4"><?php echo $alasan_tutup ?? 'Pendaftaran untuk event ini sudah ditutup'; ?></p>
+                        <div class="d-flex justify-content-center gap-3">
+                            <a href="event.php" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-2"></i> Kembali ke Event
+                            </a>
+                            <a href="detail_event.php?id=<?php echo $event_id; ?>" class="btn btn-outline-primary">
+                                <i class="fas fa-info-circle me-2"></i> Detail Event
+                            </a>
+                        </div>
+                    </div>
+                    
+                <?php elseif (!empty($event['link_pendaftaran'])): ?>
+                    <!-- PENDAFTARAN VIA GOOGLE FORM -->
+                    <div class="info-box text-center">
+                        <i class="fab fa-google fa-3x mb-3" style="color: #4285F4;"></i>
+                        <h4>Pendaftaran via Google Form</h4>
+                        <p class="mb-4">Event ini menggunakan Google Form untuk pendaftaran. Klik tombol di bawah untuk mengisi formulir.</p>
+                        
+                        <div class="d-grid gap-3 d-md-block">
+                            <a href="<?php echo htmlspecialchars($event['link_pendaftaran']); ?>" 
+                               class="btn btn-success btn-lg px-5" target="_blank">
+                                <i class="fab fa-google me-2"></i> Buka Google Form
+                            </a>
+                            <a href="event.php" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i> Batal
+                            </a>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Form akan terbuka di tab baru. Pastikan data Anda tersimpan.
+                            </small>
+                        </div>
+                    </div>
+                    
+                <?php elseif ($success): ?>
+                    <!-- SUCCESS MESSAGE -->
+                    <div class="success-box">
+                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                        <h3>Pendaftaran Berhasil!</h3>
+                        <p class="lead">Terima kasih telah mendaftar event <strong><?php echo htmlspecialchars($event['judul']); ?></strong></p>
+                        
+                        <div class="alert alert-primary mt-4" style="background: #e3f2fd; border-color: #2196F3;">
+                            <h5><i class="fas fa-id-card me-2"></i>ID Pendaftaran Anda</h5>
+                            <p class="display-4 text-primary fw-bold mb-1"><?php echo str_pad($pendaftaran_id, 6, '0', STR_PAD_LEFT); ?></p>
+                            <small class="text-muted">Simpan ID ini untuk keperluan verifikasi</small>
+                        </div>
+                        
+                        <div class="mt-4 text-start">
+                            <p class="mb-2">
+                                <i class="fas fa-envelope me-2 text-primary"></i>
+                                Konfirmasi pendaftaran telah dikirim ke email Anda.
+                            </p>
+                            <p>
+                                <i class="fas fa-phone me-2 text-primary"></i>
+                                Admin akan menghubungi melalui WhatsApp untuk informasi selanjutnya.
+                            </p>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <a href="event.php" class="btn btn-primary me-3">
+                                <i class="fas fa-list me-2"></i> Lihat Event Lainnya
+                            </a>
+                            <a href="index.php" class="btn btn-outline-primary">
+                                <i class="fas fa-home me-2"></i> Kembali ke Beranda
+                            </a>
+                        </div>
+                    </div>
+                    
+                <?php else: ?>
+                    <!-- FORM PENDAFTARAN WEBSITE -->
+                    
+                    <?php if (!empty($error)): ?>
+                    <div class="error-box">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <?php echo $error; ?>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
+                    <div class="info-box">
+                        <i class="fas fa-users me-2"></i>
+                        <strong>Pendaftaran Tim</strong>
+                        <p class="mb-0">Isi data ketua tim dan anggota tim sesuai jumlah yang dibutuhkan.</p>
+                        <small>Minimal <?php echo $event['min_anggota']; ?> orang | Maksimal <?php echo $event['max_anggota']; ?> orang</small>
+                    </div>
+                    <?php else: ?>
+                    <div class="info-box">
+                        <i class="fas fa-user me-2"></i>
+                        <strong>Pendaftaran Individu</strong>
+                        <p class="mb-0">Isi data diri Anda untuk mendaftar event ini.</p>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- FORM -->
+                    <form method="POST" action="?event_id=<?php echo $event_id; ?>" id="formPendaftaran">
+                        
+                        <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
+                            <!-- ============= FORM UNTUK TIM ============= -->
+                            <div class="form-section">
+                                <h4 class="section-title"><i class="fas fa-crown me-2"></i>Data Ketua Tim</h4>
+                                
+                                <div class="row">
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label required">Nama Tim</label>
+                                        <input type="text" name="nama_tim" class="form-control form-control-lg" 
+                                               placeholder="Contoh: Tim Bintang, Warriors, dll" required
+                                               value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>">
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">Nama Ketua Tim</label>
+                                        <input type="text" name="ketua_nama" class="form-control" required
+                                               value="<?php echo isset($_POST['ketua_nama']) ? htmlspecialchars($_POST['ketua_nama']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">NIM Ketua</label>
+                                        <input type="text" name="ketua_nim" class="form-control"
+                                               value="<?php echo isset($_POST['ketua_nim']) ? htmlspecialchars($_POST['ketua_nim']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">Email Ketua</label>
+                                        <input type="email" name="ketua_email" class="form-control" required
+                                               value="<?php echo isset($_POST['ketua_email']) ? htmlspecialchars($_POST['ketua_email']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">No HP/WhatsApp Ketua</label>
+                                        <input type="tel" name="ketua_no_hp" class="form-control" required
+                                               placeholder="0812-3456-7890"
+                                               value="<?php echo isset($_POST['ketua_no_hp']) ? htmlspecialchars($_POST['ketua_no_hp']) : ''; ?>">
+                                        <small class="text-muted">Format: 0812-3456-7890</small>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Jurusan Ketua</label>
+                                        <select name="ketua_jurusan" class="form-select">
+                                            <option value="">Pilih Jurusan</option>
+                                            <option value="Teknik Informatika" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Teknik Informatika') ? 'selected' : ''; ?>>Teknik Informatika</option>
+                                            <option value="Sistem Informasi" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Sistem Informasi') ? 'selected' : ''; ?>>Sistem Informasi</option>
+                                            <option value="Teknik Elektro" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Teknik Elektro') ? 'selected' : ''; ?>>Teknik Elektro</option>
+                                            <option value="Akuntansi" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Akuntansi') ? 'selected' : ''; ?>>Akuntansi</option>
+                                            <option value="Manajemen" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Manajemen') ? 'selected' : ''; ?>>Manajemen</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Angkatan</label>
+                                        <select name="ketua_angkatan" class="form-select">
+                                            <option value="">Pilih Angkatan</option>
+                                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
+                                            <option value="<?php echo $year; ?>" <?php echo (isset($_POST['ketua_angkatan']) && $_POST['ketua_angkatan'] == $year) ? 'selected' : ''; ?>>
+                                                <?php echo $year; ?>
+                                            </option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ANGGOTA TIM -->
+                            <div class="anggota-section">
+                                <div class="anggota-header">
+                                    <h4 class="section-title mb-0"><i class="fas fa-users me-2"></i>Anggota Tim</h4>
+                                    <div class="anggota-counter">
+                                        Anggota: <span id="anggotaCount">1</span>/<?php echo $event['max_anggota']; ?>
+                                    </div>
+                                </div>
+                                
+                                <p class="mb-3">Minimal <?php echo $event['min_anggota']; ?> orang | Maksimal <?php echo $event['max_anggota']; ?> orang</p>
+                                
+                                <div id="anggotaContainer">
+                                    <!-- Anggota akan ditambahkan dinamis di sini -->
+                                </div>
+                                
+                                <!-- TOMBOL TAMBAH ANGGOTA -->
+                                <button type="button" class="btn-add-anggota" id="btnTambahAnggota">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <p class="text-center text-muted mt-2 mb-0">Klik untuk tambah anggota tim</p>
+                            </div>
+                            
+                        <?php else: ?>
+                            <!-- ============= FORM UNTUK INDIVIDU ============= -->
+                            <div class="form-section">
+                                <h4 class="section-title"><i class="fas fa-user me-2"></i>Data Pribadi</h4>
+                                
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">Nama Lengkap</label>
+                                        <input type="text" name="nama" class="form-control" required
+                                               value="<?php echo isset($_POST['nama']) ? htmlspecialchars($_POST['nama']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">NIM</label>
+                                        <input type="text" name="nim" class="form-control"
+                                               value="<?php echo isset($_POST['nim']) ? htmlspecialchars($_POST['nim']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">Email</label>
+                                        <input type="email" name="email" class="form-control" required
+                                               value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label required">No HP/WhatsApp</label>
+                                        <input type="tel" name="no_hp" class="form-control" required
+                                               placeholder="0812-3456-7890"
+                                               value="<?php echo isset($_POST['no_hp']) ? htmlspecialchars($_POST['no_hp']) : ''; ?>">
+                                        <small class="text-muted">Format: 0812-3456-7890</small>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Jurusan</label>
+                                        <select name="jurusan" class="form-select">
+                                            <option value="">Pilih Jurusan</option>
+                                            <option value="Teknik Informatika" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Teknik Informatika') ? 'selected' : ''; ?>>Teknik Informatika</option>
+                                            <option value="Sistem Informasi" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Sistem Informasi') ? 'selected' : ''; ?>>Sistem Informasi</option>
+                                            <option value="Teknik Elektro" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Teknik Elektro') ? 'selected' : ''; ?>>Teknik Elektro</option>
+                                            <option value="Akuntansi" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Akuntansi') ? 'selected' : ''; ?>>Akuntansi</option>
+                                            <option value="Manajemen" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Manajemen') ? 'selected' : ''; ?>>Manajemen</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Angkatan</label>
+                                        <select name="angkatan" class="form-select">
+                                            <option value="">Pilih Angkatan</option>
+                                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
+                                            <option value="<?php echo $year; ?>" <?php echo (isset($_POST['angkatan']) && $_POST['angkatan'] == $year) ? 'selected' : ''; ?>>
+                                                <?php echo $year; ?>
+                                            </option>
+                                            <?php endfor; ?>
+                                        </select>
+                                    </div>
+                                    
+                                    <?php if ($event['tipe_pendaftaran'] == 'individu_tim'): ?>
+                                    <div class="col-md-12 mb-3">
+                                        <label class="form-label">Nama Tim/Kelompok (Opsional)</label>
+                                        <input type="text" name="nama_tim" class="form-control" 
+                                               placeholder="Kosongkan jika mendaftar sendiri"
+                                               value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>">
+                                        <small class="text-muted">Isi jika ingin mendaftar sebagai kelompok</small>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <div class="form-section">
+                                <h4 class="section-title"><i class="fas fa-comment-dots me-2"></i>Motivasi & Harapan</h4>
+                                <div class="mb-4">
+                                    <textarea name="motivasi" class="form-control" rows="5" 
+                                              placeholder="Ceritakan mengapa Anda ingin mengikuti event ini dan apa harapan Anda..."><?php echo isset($_POST['motivasi']) ? htmlspecialchars($_POST['motivasi']) : ''; ?></textarea>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <!-- BUTTONS -->
+                        <div class="border-top pt-4 mt-4">
+                            <div class="d-flex justify-content-between">
+                                <a href="event.php" class="btn btn-outline-secondary px-4">
+                                    <i class="fas fa-times me-1"></i> Batal
+                                </a>
+                                
+                                <button type="submit" class="btn btn-primary btn-lg px-5">
+                                    <i class="fas fa-paper-plane me-1"></i>
+                                    Kirim Pendaftaran
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <!-- INFO TAMBAHAN -->
+        <div class="alert alert-info mt-3">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-info-circle me-2"></i> Informasi Penting</h5>
+                    <p class="mb-0">Pastikan data yang Anda isi benar dan valid. Data akan digunakan untuk proses seleksi dan sertifikat.</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <a href="event.php" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar me-2"></i> Lihat Event Lainnya
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- FOOTER -->
+    <div class="registration-footer">
+        <div class="container">
+            <p class="mb-2">Politeknik Negeri Batam - Sistem Pendaftaran Event</p>
+            <div class="footer-links">
+                <a href="index.php">Beranda</a> |
+                <a href="event.php">Event</a> |
+                <a href="berita.php">Berita</a> |
+                <a href="admin/login.php">Admin</a>
+            </div>
+            <p class="mt-3 mb-0">
+                <small>&copy; 2025 Portal Informasi Kampus. Semua hak dilindungi.</small>
+            </p>
+        </div>
+    </div>
+    
+    <!-- SCRIPTS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
+        // ============= JAVASCRIPT UNTUK TIM =============
+        let anggotaCount = 1; // Ketua sudah dihitung
+        const maxAnggota = <?php echo $event['max_anggota']; ?>;
+        const minAnggota = <?php echo $event['min_anggota']; ?>;
+        let anggotaIndex = 0;
+        
+        // Fungsi tambah anggota
+        document.getElementById('btnTambahAnggota').addEventListener('click', function() {
+            if (anggotaCount >= maxAnggota) {
+                alert('Maksimal ' + maxAnggota + ' anggota sudah tercapai!');
+                this.disabled = true;
                 return;
             }
             
-            // 7. Validasi format NIM (harus angka semua)
-            const nimValue = document.getElementById('nim').value;
-            if (!/^\d+$/.test(nimValue)) {
-                alert('❌ NIM harus berupa angka!');
-                document.getElementById('nim').focus();
-                return;
-            }
+            anggotaIndex++;
+            anggotaCount++;
             
-            // 7. Validasi format Nomor WA (harus angka semua)
-            const waValue = document.getElementById('wa').value;
-            if (!/^\d+$/.test(waValue)) {
-                alert('❌ Nomor WA harus berupa angka!');
-                document.getElementById('wa').focus();
-                return;
-            }
+            const container = document.getElementById('anggotaContainer');
+            const newCard = document.createElement('div');
+            newCard.className = 'anggota-card';
+            newCard.id = 'anggotaCard-' + anggotaIndex;
             
-            // 8. Validasi NIM Anggota (harus angka semua)
-            const anggotaNimInputs = document.querySelectorAll('input[name="anggota_nim[]"]');
-            for (let i = 0; i < anggotaNimInputs.length; i++) {
-                const nimAnggota = anggotaNimInputs[i].value;
-                if (nimAnggota && !/^\d+$/.test(nimAnggota)) {
-                    alert(`❌ NIM Anggota ${i + 1} harus berupa angka!`);
-                    anggotaNimInputs[i].focus();
-                    return;
-                }
-            }
+            newCard.innerHTML = `
+                <div class="anggota-header">
+                    <h5 class="mb-0"><i class="fas fa-user me-1"></i> Anggota ${anggotaIndex + 1}</h5>
+                    <small class="text-muted">Data anggota tim</small>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label required">Nama Lengkap</label>
+                        <input type="text" name="anggota_nama_${anggotaIndex}" class="form-control" 
+                               placeholder="Nama anggota" required>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">NIM</label>
+                        <input type="text" name="anggota_nim_${anggotaIndex}" class="form-control" 
+                               placeholder="NIM anggota">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Jurusan</label>
+                        <select name="anggota_jurusan_${anggotaIndex}" class="form-select">
+                            <option value="">Pilih Jurusan</option>
+                            <option value="Teknik Informatika">Teknik Informatika</option>
+                            <option value="Sistem Informasi">Sistem Informasi</option>
+                            <option value="Teknik Elektro">Teknik Elektro</option>
+                            <option value="Akuntansi">Akuntansi</option>
+                            <option value="Manajemen">Manajemen</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Angkatan</label>
+                        <select name="anggota_angkatan_${anggotaIndex}" class="form-select">
+                            <option value="">Pilih Angkatan</option>
+                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
+                            <option value="<?php echo $year; ?>"><?php echo $year; ?></option>
+                            <?php endfor; ?>
+                        </select>
+                    </div>
+                </div>
+                <button type="button" class="btn-remove-anggota" onclick="hapusAnggota(${anggotaIndex})">
+                    <i class="fas fa-trash me-1"></i> Hapus Anggota
+                </button>
+            `;
             
-            // 9. Tampilkan loading
-            const originalText = btnDaftar.innerHTML;
-            btnDaftar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengirim...';
-            btnDaftar.disabled = true;
-            
-              // 10. Submit form NORMAL (TANPA AJAX)
-            document.getElementById('formPendaftaran').submit();
+            container.appendChild(newCard);
+            updateAnggotaCounter();
         });
-    }
-});
-  </script>
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        
+        // Fungsi hapus anggota
+        function hapusAnggota(index) {
+            if (anggotaCount <= minAnggota) {
+                alert('Minimal ' + minAnggota + ' anggota harus diisi!');
+                return;
+            }
+            
+            const card = document.getElementById('anggotaCard-' + index);
+            if (card) {
+                card.remove();
+                anggotaCount--;
+                document.getElementById('btnTambahAnggota').disabled = false;
+                updateAnggotaCounter();
+            }
+        }
+        
+        // Fungsi update counter
+        function updateAnggotaCounter() {
+            document.getElementById('anggotaCount').textContent = anggotaCount;
+            
+            // Update warna counter
+            const counter = document.querySelector('.anggota-counter');
+            if (anggotaCount < minAnggota) {
+                counter.style.background = '#dc3545';
+            } else if (anggotaCount >= maxAnggota) {
+                counter.style.background = '#28a745';
+            } else {
+                counter.style.background = '#0056b3';
+            }
+        }
+        
+        // Validasi form sebelum submit
+        document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
+            if (anggotaCount < minAnggota) {
+                e.preventDefault();
+                alert(`Minimal ${minAnggota} anggota harus diisi!`);
+                return false;
+            }
+            
+            // Validasi email dan no HP
+            const email = document.querySelector('input[name="ketua_email"]').value;
+            const nohp = document.querySelector('input[name="ketua_no_hp"]').value;
+            
+            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                e.preventDefault();
+                alert('Format email tidak valid!');
+                return false;
+            }
+            
+            if (!nohp.match(/^[0-9+\-\s]{10,15}$/)) {
+                e.preventDefault();
+                alert('Format nomor HP tidak valid! Harus 10-15 digit angka');
+                return false;
+            }
+            
+            return true;
+        });
+        
+        // Auto format phone number
+        document.querySelector('input[name="ketua_no_hp"]')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 4) {
+                    value = value;
+                } else if (value.length <= 8) {
+                    value = value.slice(0, 4) + '-' + value.slice(4);
+                } else {
+                    value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
+                }
+            }
+            e.target.value = value;
+        });
+        
+        // Inisialisasi counter
+        updateAnggotaCounter();
+        
+        <?php else: ?>
+        // ============= JAVASCRIPT UNTUK INDIVIDU =============
+        // Auto format phone number
+        document.querySelector('input[name="no_hp"]')?.addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 0) {
+                if (value.length <= 4) {
+                    value = value;
+                } else if (value.length <= 8) {
+                    value = value.slice(0, 4) + '-' + value.slice(4);
+                } else {
+                    value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
+                }
+            }
+            e.target.value = value;
+        });
+        
+        // Validasi form
+        document.getElementById('formPendaftaran')?.addEventListener('submit', function(e) {
+            const email = document.querySelector('input[name="email"]')?.value;
+            const nohp = document.querySelector('input[name="no_hp"]')?.value;
+            
+            if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                e.preventDefault();
+                alert('Format email tidak valid!');
+                return false;
+            }
+            
+            if (nohp && !nohp.match(/^[0-9+\-\s]{10,15}$/)) {
+                e.preventDefault();
+                alert('Format nomor HP tidak valid! Harus 10-15 digit angka');
+                return false;
+            }
+            
+            return true;
+        });
+        <?php endif; ?>
+        
+        // Auto-focus ke field pertama
+        document.addEventListener('DOMContentLoaded', function() {
+            const firstInput = document.querySelector('input[required]');
+            if (firstInput) {
+                firstInput.focus();
+            }
+        });
+    </script>
 </body>
 </html>
+<?php
+// Tutup koneksi
+$conn->close();
+?>

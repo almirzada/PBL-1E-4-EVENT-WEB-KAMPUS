@@ -1,14 +1,25 @@
 <?php
+// koneksi.php - VERSI DEBUG
 $host = "localhost";
-$username = "root";
-$password = "";
-$database = "db_lomba";
+$user = "root";
+$pass = "";
+$db   = "event_kampus";
 
-$conn = new mysqli($host, $username, $password, $database);
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-if ($conn->connect_error) {
-    die("Koneksi gagal: " . $conn->connect_error);
+$conn = mysqli_connect($host, $user, $pass, $db);
+
+if (!$conn) {
+    die("DATABASE ERROR: " . mysqli_connect_error() . 
+        "<br>Pastikan database 'event_kampus' sudah dibuat di phpMyAdmin!");
 }
 
-$conn->set_charset("utf8mb4");
+mysqli_set_charset($conn, "utf8mb4");
+
+// Debug: cek apakah database ada
+$result = mysqli_query($conn, "SHOW DATABASES LIKE 'event_kampus'");
+if (mysqli_num_rows($result) == 0) {
+    die("Database 'event_kampus' tidak ditemukan. Silakan buat database terlebih dahulu!");
+}
 ?>

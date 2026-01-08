@@ -1,16 +1,11 @@
 <?php
+// logout.php
 session_start();
 
-// LOG LOGOUT
-if (isset($_SESSION['username'])) {
-    $log_message = "Logout - User: " . $_SESSION['username'];
-    error_log($log_message);
-}
-
-// HANCURKAN SEMUA DATA SESSION
+// Hapus semua session
 $_SESSION = array();
 
-// HAPUS COOKIE SESSION JIKA ADA
+// Hapus cookie session
 if (ini_get("session.use_cookies")) {
     $params = session_get_cookie_params();
     setcookie(session_name(), '', time() - 42000,
@@ -19,9 +14,10 @@ if (ini_get("session.use_cookies")) {
     );
 }
 
-// HANCURKAN SESSION
+// Hancurkan session
 session_destroy();
 
-// REDIRECT KE HALAMAN LOGIN
-header("Location: login.php");
+// Redirect ke login
+header('Location: login.php');
 exit();
+?>
