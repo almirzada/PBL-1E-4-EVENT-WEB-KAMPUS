@@ -1,433 +1,342 @@
 <?php
-require_once 'koneksi.php';
 session_start();
+require_once 'koneksi.php';
 
-// ============================================
-// 1. VALIDASI EVENT & AMBIL DARI DATABASE LANGSUNG
-// ============================================
-// HAPUS debugging yang membuat tampilan jelek
-error_reporting(0); // Nonaktifkan error display
-
-// Jika tidak ada event_id, ambil event pertama dari database
-if (!isset($_GET['event_id']) || empty($_GET['event_id'])) {
-    // Ambil event terbaru atau event pertama yang aktif
-    $query = "SELECT e.*, k.nama as kategori_nama, k.warna, k.ikon 
-              FROM events e 
-              LEFT JOIN kategori k ON e.kategori_id = k.id 
-              WHERE e.status = 'aktif' 
-              ORDER BY e.tanggal DESC 
-              LIMIT 1";
-    
-    $result = mysqli_query($conn, $query);
-    
-    if (mysqli_num_rows($result) == 0) {
-        // Jika tidak ada event sama sekali, redirect ke event.php
-        $_SESSION['error'] = "Tidak ada event yang tersedia untuk pendaftaran.";
-        header("Location: event.php");
-        exit();
-    }
-    
-    $event = mysqli_fetch_assoc($result);
-    $event_id = $event['id'];
-    
-    // Tampilkan pesan bahwa ini adalah event terbaru
-    $info_message = "Menampilkan event terbaru. Pilih event lain di <a href='event.php'>halaman event</a>.";
-} else {
-    // Bersihkan dan validasi event_id dari URL
-    $event_id = intval($_GET['event_id']);
-    
-    if ($event_id <= 0) {
-        $_SESSION['error'] = "ID Event tidak valid.";
-        header("Location: event.php");
-        exit();
-    }
-    
-    // Query yang lebih aman dengan prepared statement
-    $query = "SELECT e.*, k.nama as kategori_nama, k.warna, k.ikon 
-              FROM events e 
-              LEFT JOIN kategori k ON e.kategori_id = k.id 
-              WHERE e.id = ? AND e.status = 'aktif'";
-    
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        $_SESSION['error'] = "Terjadi kesalahan pada server.";
-        header("Location: event.php");
-        exit();
-    }
-    
-    $stmt->bind_param("i", $event_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    
-    // Cek jika event tidak ditemukan
-    if ($result->num_rows == 0) {
-        $_SESSION['error'] = "Event tidak ditemukan atau sudah tidak aktif.";
-        header("Location: event.php");
-        exit();
-    }
-    
-    $event = $result->fetch_assoc();
+// ================================================
+// CEK PARAMETER EVENT
+// ================================================
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
+    header("Location: event.php");
+    exit();
 }
 
-// ============================================
-// 2. CEK APAKAH PENDAFTARAN MASIH DIBUKA
-// ============================================
+$event_id = intval($_GET['id']);
+
+// ================================================
+// AMBIL DATA EVENT
+// ================================================
+$event_query = "SELECT e.*, k.nama as kategori_nama, k.warna 
+                FROM events e 
+                LEFT JOIN kategori k ON e.kategori_id = k.id 
+                WHERE e.id = $event_id AND e.status = 'publik'";
+
+$event_result = mysqli_query($conn, $event_query);
+
+if (mysqli_num_rows($event_result) == 0) {
+    header("Location: event.php");
+    exit();
+}
+
+$event = mysqli_fetch_assoc($event_result);
+
+// ================================================
+// CEK STATUS PENDAFTARAN
+// ================================================
 $today = date('Y-m-d');
-$pendaftaran_dibuka = true;
-$alasan_tutup = '';
+$tanggal_event = $event['tanggal'];
+$kuota = $event['kuota_peserta'];
+$biaya = $event['biaya_pendaftaran'];
+$tipe = $event['tipe_pendaftaran'];
+$min_anggota = $event['min_anggota'];
+$max_anggota = $event['max_anggota'];
 
-// Cek tanggal daftar akhir jika ada
-if (!empty($event['tanggal_daftar_akhir']) && $today > $event['tanggal_daftar_akhir']) {
-    $pendaftaran_dibuka = false;
-    $alasan_tutup = "Pendaftaran telah ditutup sejak " . date('d F Y', strtotime($event['tanggal_daftar_akhir']));
+// Cek apakah event sudah lewat
+$event_passed = strtotime($tanggal_event) < strtotime($today);
+
+// Cek kuota jika ada
+$registered_count = 0;
+$is_full = false;
+
+if ($kuota > 0) {
+    if ($tipe == 'tim') {
+        // Hitung jumlah tim yang terdaftar
+        $count_query = "SELECT COUNT(DISTINCT tim_id) as total FROM peserta WHERE event_id = $event_id";
+    } else {
+        // Hitung jumlah individu yang terdaftar
+        $count_query = "SELECT COUNT(*) as total FROM peserta WHERE event_id = $event_id";
+    }
+    
+    $count_result = mysqli_query($conn, $count_query);
+    $count_row = mysqli_fetch_assoc($count_result);
+    $registered_count = $count_row['total'];
+    $remaining = $kuota - $registered_count;
+    $is_full = $remaining <= 0;
 }
 
-// Cek jika event sudah lewat
-if ($today > $event['tanggal']) {
-    $pendaftaran_dibuka = false;
-    $alasan_tutup = "Event telah berlalu pada " . date('d F Y', strtotime($event['tanggal']));
-}
+// ================================================
+// PROSES PENDAFTARAN
+// ================================================
+$errors = [];
+$success = false;
 
-// Cek apakah event sudah dimulai
-if (!empty($event['tanggal_mulai']) && $today < $event['tanggal_mulai']) {
-    $pendaftaran_dibuka = false;
-    $alasan_tutup = "Pendaftaran akan dibuka pada " . date('d F Y', strtotime($event['tanggal_mulai']));
-}
-
-// ============================================
-// 3. CEK KUOTA (UNTUK SISTEM WEBSITE)
-// ============================================
-$kuota_penuh = false;
-if ($pendaftaran_dibuka && empty($event['link_pendaftaran'])) {
-    // Hitung jumlah pendaftar
-    $query_pendaftar = "SELECT COUNT(*) as total FROM pendaftaran WHERE event_id = ? AND status != 'ditolak'";
-    $stmt = $conn->prepare($query_pendaftar);
-    $stmt->bind_param("i", $event_id);
-    $stmt->execute();
-    $result_pendaftar = $stmt->get_result();
-    $pendaftar = $result_pendaftar->fetch_assoc();
-    $jumlah_pendaftar = $pendaftar['total'];
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    // Ambil data dasar
+    $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? '');
+    $tipe_daftar = $_POST['tipe_daftar'] ?? 'individu';
+    $jumlah_anggota = intval($_POST['jumlah_anggota'] ?? 1);
+    
+    // Validasi berdasarkan tipe
+    if ($tipe == 'tim' && $tipe_daftar != 'tim') {
+        $errors[] = 'Event ini wajib mendaftar sebagai tim!';
+    }
+    
+    if ($tipe == 'individu' && $tipe_daftar != 'individu') {
+        $errors[] = 'Event ini hanya untuk pendaftaran individu!';
+    }
+    
+    // Validasi jumlah anggota untuk tim
+    if ($tipe_daftar == 'tim') {
+        if (empty($nama_tim)) {
+            $errors[] = 'Nama tim harus diisi!';
+        }
+        
+        if ($jumlah_anggota < $min_anggota) {
+            $errors[] = "Minimal anggota tim adalah $min_anggota orang!";
+        }
+        
+        if ($jumlah_anggota > $max_anggota) {
+            $errors[] = "Maksimal anggota tim adalah $max_anggota orang!";
+        }
+    }
     
     // Cek kuota
-    if ($event['kuota_peserta'] > 0 && $jumlah_pendaftar >= $event['kuota_peserta']) {
-        $kuota_penuh = true;
-        $alasan_tutup = "Kuota pendaftaran telah penuh";
+    if ($is_full) {
+        $errors[] = 'Maaf, kuota pendaftaran sudah penuh!';
     }
-}
-
-// ============================================
-// 4. PROSES PENDAFTARAN JIKA FORM DISUBMIT
-// ============================================
-$success = false;
-$error = '';
-$pendaftaran_id = 0;
-
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && $pendaftaran_dibuka && !$kuota_penuh && empty($event['link_pendaftaran'])) {
     
-    // AMBIL DATA DARI FORM BERDASARKAN TIPE
-    $tipe_pendaftaran = $event['tipe_pendaftaran'] ?? 'individu';
-    
-    if ($tipe_pendaftaran == 'individu') {
-        // PROSES PENDAFTARAN INDIVIDU
-        $nama = mysqli_real_escape_string($conn, $_POST['nama'] ?? '');
-        $nim = mysqli_real_escape_string($conn, $_POST['nim'] ?? '');
-        $email = mysqli_real_escape_string($conn, $_POST['email'] ?? '');
-        $no_hp = mysqli_real_escape_string($conn, $_POST['no_hp'] ?? '');
-        $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'] ?? '');
-        $angkatan = mysqli_real_escape_string($conn, $_POST['angkatan'] ?? '');
-        $motivasi = mysqli_real_escape_string($conn, $_POST['motivasi'] ?? '');
-        $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? $nama);
+    // Jika tidak ada error, proses pendaftaran
+    if (empty($errors)) {
+        mysqli_begin_transaction($conn);
         
-        // VALIDASI
-        if (empty($nama) || empty($email) || empty($no_hp)) {
-            $error = "Nama, email, dan nomor HP harus diisi!";
-        } else {
-            // Cek apakah sudah pernah mendaftar
-            $cek_query = "SELECT id FROM pendaftaran WHERE event_id = ? AND email = ?";
-            $stmt = $conn->prepare($cek_query);
-            $stmt->bind_param("is", $event_id, $email);
-            $stmt->execute();
-            $cek_result = $stmt->get_result();
+        try {
+            // Generate ID unik
+            $kode_pendaftaran = 'REG-' . strtoupper(substr($event['slug'], 0, 3)) . '-' . date('Ymd') . '-' . rand(1000, 9999);
             
-            if ($cek_result->num_rows > 0) {
-                $error = "Anda sudah terdaftar pada event ini dengan email tersebut!";
-            } else {
-                // SIMPAN KE DATABASE
-                $insert_query = "INSERT INTO pendaftaran 
-                                (event_id, nama, nim, email, no_hp, jurusan, angkatan, motivasi, jumlah_anggota, nama_tim, tanggal_daftar, status) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW(), 'menunggu')";
-                $stmt = $conn->prepare($insert_query);
-                if (!$stmt) {
-                    $error = "Gagal mempersiapkan query: " . $conn->error;
-                } else {
-                    $stmt->bind_param("issssssss", $event_id, $nama, $nim, $email, $no_hp, $jurusan, $angkatan, $motivasi, $nama_tim);
+            if ($tipe_daftar == 'tim') {
+                // Simpan data tim terlebih dahulu
+                $tim_query = "INSERT INTO tim_event (event_id, nama_tim, kode_pendaftaran, jumlah_anggota, created_at) 
+                              VALUES ($event_id, '$nama_tim', '$kode_pendaftaran', $jumlah_anggota, NOW())";
+                
+                if (mysqli_query($conn, $tim_query)) {
+                    $tim_id = mysqli_insert_id($conn);
                     
-                    if ($stmt->execute()) {
-                        $success = true;
-                        $pendaftaran_id = $stmt->insert_id;
-                    } else {
-                        $error = "Gagal mendaftar: " . $conn->error;
+                    // Simpan data ketua tim (anggota pertama)
+                    $nama_ketua = mysqli_real_escape_string($conn, $_POST['nama'][0] ?? '');
+                    $npm_ketua = mysqli_real_escape_string($conn, $_POST['npm'][0] ?? '');
+                    $email_ketua = mysqli_real_escape_string($conn, $_POST['email'][0] ?? '');
+                    $wa_ketua = mysqli_real_escape_string($conn, $_POST['wa'][0] ?? '');
+                    $jurusan_ketua = mysqli_real_escape_string($conn, $_POST['jurusan'][0] ?? '');
+                    
+                    $ketua_query = "INSERT INTO peserta (event_id, tim_id, nama, npm, email, no_wa, jurusan, status_anggota, created_at) 
+                                    VALUES ($event_id, $tim_id, '$nama_ketua', '$npm_ketua', '$email_ketua', '$wa_ketua', '$jurusan_ketua', 'ketua', NOW())";
+                    
+                    if (!mysqli_query($conn, $ketua_query)) {
+                        throw new Exception('Gagal menyimpan data ketua tim: ' . mysqli_error($conn));
                     }
-                }
-            }
-        }
-        
-    } elseif ($tipe_pendaftaran == 'tim') {
-        // PROSES PENDAFTARAN TIM
-        $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? '');
-        $ketua_nama = mysqli_real_escape_string($conn, $_POST['ketua_nama'] ?? '');
-        $ketua_nim = mysqli_real_escape_string($conn, $_POST['ketua_nim'] ?? '');
-        $ketua_email = mysqli_real_escape_string($conn, $_POST['ketua_email'] ?? '');
-        $ketua_no_hp = mysqli_real_escape_string($conn, $_POST['ketua_no_hp'] ?? '');
-        $ketua_jurusan = mysqli_real_escape_string($conn, $_POST['ketua_jurusan'] ?? '');
-        $ketua_angkatan = mysqli_real_escape_string($conn, $_POST['ketua_angkatan'] ?? '');
-        
-        // AMBIL DATA ANGGOTA
-        $anggota_data = [];
-        $total_anggota = 1; // Ketua sudah dihitung
-        
-        // Loop untuk anggota tambahan
-        $max_anggota = $event['max_anggota'] ?? 1;
-        for ($i = 1; $i <= $max_anggota; $i++) {
-            if (isset($_POST["anggota_nama_$i"]) && !empty(trim($_POST["anggota_nama_$i"]))) {
-                $anggota_data[] = [
-                    'nama' => mysqli_real_escape_string($conn, $_POST["anggota_nama_$i"]),
-                    'nim' => mysqli_real_escape_string($conn, $_POST["anggota_nim_$i"] ?? ''),
-                    'jurusan' => mysqli_real_escape_string($conn, $_POST["anggota_jurusan_$i"] ?? ''),
-                    'angkatan' => mysqli_real_escape_string($conn, $_POST["anggota_angkatan_$i"] ?? '')
-                ];
-                $total_anggota++;
-            }
-        }
-        
-        // VALIDASI
-        if (empty($nama_tim) || empty($ketua_nama) || empty($ketua_email) || empty($ketua_no_hp)) {
-            $error = "Nama tim, nama ketua, email, dan nomor HP ketua harus diisi!";
-        } elseif ($total_anggota < ($event['min_anggota'] ?? 1)) {
-            $error = "Minimal anggota untuk tim ini adalah " . ($event['min_anggota'] ?? 1) . " orang!";
-        } elseif ($total_anggota > ($event['max_anggota'] ?? 1)) {
-            $error = "Maksimal anggota untuk tim ini adalah " . ($event['max_anggota'] ?? 1) . " orang!";
-        } else {
-            // Cek apakah tim sudah terdaftar
-            $cek_query = "SELECT id FROM pendaftaran WHERE event_id = ? AND nama_tim = ?";
-            $stmt = $conn->prepare($cek_query);
-            $stmt->bind_param("is", $event_id, $nama_tim);
-            $stmt->execute();
-            $cek_result = $stmt->get_result();
-            
-            if ($cek_result->num_rows > 0) {
-                $error = "Nama tim sudah digunakan! Silakan gunakan nama tim lain.";
-            } else {
-                // SIMPAN TIM KE DATABASE
-                $insert_query = "INSERT INTO pendaftaran 
-                                (event_id, nama_tim, nama, nim, email, no_hp, jurusan, angkatan, jumlah_anggota, tanggal_daftar, status) 
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), 'menunggu')";
-                $stmt = $conn->prepare($insert_query);
-                if (!$stmt) {
-                    $error = "Gagal mempersiapkan query: " . $conn->error;
-                } else {
-                    $stmt->bind_param("isssssssi", $event_id, $nama_tim, $ketua_nama, $ketua_nim, $ketua_email, 
-                                    $ketua_no_hp, $ketua_jurusan, $ketua_angkatan, $total_anggota);
                     
-                    if ($stmt->execute()) {
-                        $pendaftaran_id = $stmt->insert_id;
-                        
-                        // SIMPAN DATA ANGGOTA KE TABEL ANGGOTA_TIM
-                        foreach ($anggota_data as $index => $anggota) {
-                            $insert_anggota = "INSERT INTO anggota_tim 
-                                              (pendaftaran_id, nama, nim, jurusan, angkatan, nomor_anggota) 
-                                              VALUES (?, ?, ?, ?, ?, ?)";
-                            $stmt2 = $conn->prepare($insert_anggota);
-                            $nomor_anggota = $index + 2;
-                            $stmt2->bind_param("issssi", $pendaftaran_id, $anggota['nama'], $anggota['nim'], 
-                                             $anggota['jurusan'], $anggota['angkatan'], $nomor_anggota);
-                            $stmt2->execute();
+                    // Simpan data anggota lainnya
+                    for ($i = 1; $i < $jumlah_anggota; $i++) {
+                        if (!empty($_POST['nama'][$i]) && !empty($_POST['npm'][$i])) {
+                            $nama = mysqli_real_escape_string($conn, $_POST['nama'][$i]);
+                            $npm = mysqli_real_escape_string($conn, $_POST['npm'][$i]);
+                            $email = mysqli_real_escape_string($conn, $_POST['email'][$i] ?? '');
+                            $wa = mysqli_real_escape_string($conn, $_POST['wa'][$i] ?? '');
+                            $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'][$i] ?? '');
+                            
+                            $anggota_query = "INSERT INTO peserta (event_id, tim_id, nama, npm, email, no_wa, jurusan, status_anggota, created_at) 
+                                              VALUES ($event_id, $tim_id, '$nama', '$npm', '$email', '$wa', '$jurusan', 'anggota', NOW())";
+                            
+                            if (!mysqli_query($conn, $anggota_query)) {
+                                throw new Exception('Gagal menyimpan data anggota: ' . mysqli_error($conn));
+                            }
                         }
-                        
-                        $success = true;
-                    } else {
-                        $error = "Gagal mendaftar tim: " . $conn->error;
                     }
+                } else {
+                    throw new Exception('Gagal menyimpan data tim: ' . mysqli_error($conn));
+                }
+                
+            } else {
+                // Pendaftaran individu
+                $nama = mysqli_real_escape_string($conn, $_POST['nama'][0] ?? '');
+                $npm = mysqli_real_escape_string($conn, $_POST['npm'][0] ?? '');
+                $email = mysqli_real_escape_string($conn, $_POST['email'][0] ?? '');
+                $wa = mysqli_real_escape_string($conn, $_POST['wa'][0] ?? '');
+                $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'][0] ?? '');
+                
+                $kode_pendaftaran = 'IND-' . strtoupper(substr($event['slug'], 0, 3)) . '-' . date('Ymd') . '-' . rand(1000, 9999);
+                
+                $individu_query = "INSERT INTO peserta (event_id, nama, npm, email, no_wa, jurusan, kode_pendaftaran, status_anggota, created_at) 
+                                   VALUES ($event_id, '$nama', '$npm', '$email', '$wa', '$jurusan', '$kode_pendaftaran', 'individu', NOW())";
+                
+                if (!mysqli_query($conn, $individu_query)) {
+                    throw new Exception('Gagal menyimpan data individu: ' . mysqli_error($conn));
                 }
             }
+            
+            // Update jumlah pendaftar di event
+            $update_query = "UPDATE events SET total_pendaftar = total_pendaftar + 1 WHERE id = $event_id";
+            mysqli_query($conn, $update_query);
+            
+            mysqli_commit($conn);
+            $success = true;
+            
+            // Simpan kode pendaftaran di session untuk halaman sukses
+            $_SESSION['kode_pendaftaran'] = $kode_pendaftaran;
+            $_SESSION['event_id'] = $event_id;
+            
+            // Redirect ke halaman sukses
+            header("Location: pendaftaran_sukses.php?code=" . $kode_pendaftaran);
+            exit();
+            
+        } catch (Exception $e) {
+            mysqli_rollback($conn);
+            $errors[] = $e->getMessage();
         }
     }
 }
-
-// ============================================
-// 5. TAMPILAN HTML - DIKEMBALIKAN KE STYLE ASLI
-// ============================================
 ?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendaftaran <?php echo htmlspecialchars($event['judul']); ?> - Event Kampus</title>
+    <title>Pendaftaran - <?php echo htmlspecialchars($event['judul']); ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-color: #0056b3;
-            --primary-dark: #003d82;
-            --secondary-color: #f8f9fa;
-            --accent-color: #ffc107;
-            --accent-dark: #e0a800;
-            --text-color: #333;
-            --light-color: #fff;
-            --gray-light: #f5f7fa;
-            --gray-medium: #6c757d;
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #f72585;
         }
         
         body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            color: var(--text-color);
-            background-color: var(--gray-light);
-            padding-top: 0;
+            min-height: 100vh;
+            padding-bottom: 50px;
         }
         
-        /* HEADER PENDAFTARAN */
-        .registration-header {
-            background: linear-gradient(rgba(0, 86, 179, 0.95), rgba(0, 61, 130, 0.95)), 
-                        url('https://images.unsplash.com/photo-1523580494863-6f3031224c94?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80');
-            background-size: cover;
-            background-position: center;
+        /* HEADER */
+        .header-event {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
             color: white;
-            padding: 60px 0 40px;
-            margin-bottom: 30px;
-            border-bottom: 5px solid var(--accent-color);
+            padding: 50px 0;
+            margin-bottom: 40px;
+            border-radius: 0 0 20px 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
         
-        .registration-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-        
-        .registration-subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
+        .event-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 15px;
         }
         
         /* FORM CONTAINER */
         .form-container {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 40px;
+            margin-bottom: 30px;
+            position: relative;
             overflow: hidden;
-            margin-bottom: 40px;
-            border: 1px solid #e0e0e0;
         }
         
-        .form-header {
-            background: linear-gradient(90deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-            color: white;
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--primary) 0%, var(--secondary) 100%);
+        }
+        
+        /* TIPE SELECTION */
+        .tipe-selection {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .tipe-card {
+            flex: 1;
+            min-width: 200px;
+            border: 2px solid #dee2e6;
+            border-radius: 15px;
             padding: 25px;
             text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
         }
         
-        .form-header h2 {
-            margin: 0;
-            font-weight: 700;
-            font-size: 1.8rem;
+        .tipe-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.1);
         }
         
-        .form-header h4 {
-            margin: 10px 0 0;
-            font-weight: 400;
-            opacity: 0.9;
+        .tipe-card.active {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(58, 12, 163, 0.05) 100%);
         }
         
-        .form-body {
-            padding: 30px;
-        }
-        
-        /* EVENT INFO CARD */
-        .event-info-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-radius: 12px;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-left: 5px solid var(--primary-color);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        
-        .kategori-badge {
-            background: <?php echo $event['warna'] ?? '#0056b3'; ?>;
-            color: white;
-            padding: 8px 20px;
-            border-radius: 25px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: inline-block;
+        .tipe-icon {
+            font-size: 3rem;
             margin-bottom: 15px;
+            color: var(--primary);
         }
         
-        .info-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 12px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .info-row:last-child {
-            border-bottom: none;
-        }
-        
-        .info-label {
-            width: 120px;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-        
-        .info-value {
-            flex: 1;
-            color: #555;
-        }
-        
-        /* FORM STYLES */
+        /* FORM SECTIONS */
         .form-section {
-            margin-bottom: 30px;
+            margin-bottom: 35px;
+            padding-bottom: 25px;
+            border-bottom: 2px dashed #eee;
         }
         
         .section-title {
-            color: var(--primary-color);
-            font-weight: 700;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid var(--accent-color);
-            font-size: 1.3rem;
-        }
-        
-        .form-label {
+            color: var(--primary);
             font-weight: 600;
-            margin-bottom: 8px;
-            color: #444;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
-        .required:after {
-            content: " *";
-            color: #dc3545;
+        .section-title i {
+            background: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
-        /* ANGGOTA TIM SECTION */
-        .anggota-section {
-            background: #f0f8ff;
-            border-radius: 12px;
-            padding: 25px;
-            margin-top: 20px;
-            border: 2px dashed #b8d4ff;
-        }
-        
+        /* ANGGOTA CARD */
         .anggota-card {
-            background: white;
-            border-radius: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
             padding: 20px;
             margin-bottom: 20px;
-            border: 1px solid #dee2e6;
-            box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+            background: #f8f9fa;
+            transition: all 0.3s;
+        }
+        
+        .anggota-card:hover {
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
         
         .anggota-header {
@@ -436,755 +345,710 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $pendaftaran_dibuka && !$kuota_penuh
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #f0f0f0;
+            border-bottom: 1px solid #eee;
         }
         
-        .btn-add-anggota {
-            background: var(--primary-color);
+        .anggota-label {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        
+        .badge-ketua {
+            background: var(--primary);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* BUTTONS */
+        .btn-add {
+            background: var(--success);
             color: white;
             border: none;
-            border-radius: 50px;
-            width: 45px;
-            height: 45px;
+            border-radius: 10px;
+            padding: 10px 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-add:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .btn-remove {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-remove:hover {
+            background: #e31c5f;
+            transform: translateY(-2px);
+        }
+        
+        .btn-submit {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            padding: 15px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+        
+        .btn-submit:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
+        }
+        
+        /* INFO BOX */
+        .info-box {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-left: 4px solid #2196f3;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        /* ERROR & SUCCESS */
+        .alert-custom {
+            border-radius: 12px;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        /* COUNTER */
+        .anggota-counter {
+            background: var(--primary);
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 15px auto;
-            transition: all 0.3s;
+            font-weight: bold;
             font-size: 1.2rem;
-        }
-        
-        .btn-add-anggota:hover {
-            background: var(--primary-dark);
-            transform: scale(1.1);
-            box-shadow: 0 5px 15px rgba(0,86,179,0.3);
-        }
-        
-        .btn-remove-anggota {
-            background: #dc3545;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px 15px;
-            font-size: 0.9rem;
-            margin-top: 15px;
-            transition: all 0.3s;
-        }
-        
-        .btn-remove-anggota:hover {
-            background: #c82333;
-        }
-        
-        .anggota-counter {
-            background: var(--primary-color);
-            color: white;
-            border-radius: 20px;
-            padding: 8px 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-        
-        /* MESSAGE BOXES */
-        .success-box {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            border: 2px solid #28a745;
-            border-radius: 12px;
-            padding: 40px;
-            text-align: center;
-            margin: 30px 0;
-        }
-        
-        .error-box {
-            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
-            border: 2px solid #dc3545;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-        
-        .info-box {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border: 2px solid #ffc107;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-        
-        /* FOOTER */
-        .registration-footer {
-            background: var(--primary-color);
-            color: white;
-            padding: 30px 0;
-            margin-top: 50px;
-            text-align: center;
-        }
-        
-        .footer-links a {
-            color: white;
-            text-decoration: none;
-            margin: 0 15px;
-        }
-        
-        .footer-links a:hover {
-            color: var(--accent-color);
-            text-decoration: underline;
+            position: absolute;
+            top: -15px;
+            right: -15px;
+            z-index: 1;
         }
         
         /* RESPONSIVE */
         @media (max-width: 768px) {
-            .registration-header {
-                padding: 40px 0 30px;
+            .form-container {
+                padding: 25px;
             }
             
-            .registration-title {
-                font-size: 2rem;
-            }
-            
-            .form-body {
-                padding: 20px;
-            }
-            
-            .event-info-card {
-                padding: 20px;
-            }
-            
-            .info-row {
+            .tipe-selection {
                 flex-direction: column;
-                align-items: flex-start;
             }
             
-            .info-label {
-                width: 100%;
-                margin-bottom: 5px;
+            .header-event {
+                padding: 30px 0;
             }
+        }
+        
+        /* FEE BOX */
+        .fee-box {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border-left: 4px solid #ffc107;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        /* QUOTA STATUS */
+        .quota-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .progress {
+            height: 10px;
+            border-radius: 5px;
+            flex-grow: 1;
         }
     </style>
 </head>
 <body>
-    <!-- HEADER -->
-    <div class="registration-header">
+    <!-- HEADER EVENT -->
+    <div class="header-event">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <h1 class="registration-title">
-                        <i class="fas fa-user-plus me-3"></i>
-                        Pendaftaran Event Kampus
-                    </h1>
-                    <p class="registration-subtitle">
-                        Isi formulir di bawah untuk mendaftar event ini
+                    <span class="event-badge">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        <?php echo $event['kategori_nama']; ?>
+                    </span>
+                    <h1 class="display-5 fw-bold"><?php echo htmlspecialchars($event['judul']); ?></h1>
+                    <p class="lead mb-0">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        <?php echo htmlspecialchars($event['lokasi']); ?>
+                        •
+                        <i class="fas fa-clock me-2"></i>
+                        <?php echo date('d F Y', strtotime($event['tanggal'])); ?>
                     </p>
                 </div>
                 <div class="col-md-4 text-md-end">
-                    <div class="d-inline-block bg-white text-dark rounded-pill px-4 py-2">
-                        <i class="fas fa-calendar-check me-2 text-primary"></i>
-                        <strong>Event ID:</strong> <?php echo str_pad($event_id, 4, '0', STR_PAD_LEFT); ?>
-                    </div>
-                </div>
-            </div>
-            
-            <?php if (isset($info_message)): ?>
-            <div class="alert alert-info mt-3">
-                <i class="fas fa-info-circle me-2"></i>
-                <?php echo $info_message; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-    
-    <!-- MAIN CONTENT -->
-    <div class="container">
-        <!-- EVENT INFO -->
-        <div class="event-info-card">
-            <span class="kategori-badge">
-                <i class="<?php echo $event['ikon'] ?? 'fas fa-calendar'; ?> me-2"></i>
-                <?php echo htmlspecialchars($event['kategori_nama']); ?>
-            </span>
-            
-            <h3 class="mb-3" style="color: var(--primary-color);"><?php echo htmlspecialchars($event['judul']); ?></h3>
-            
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="info-row">
-                        <span class="info-label"><i class="far fa-calendar-alt me-2"></i>Tanggal:</span>
-                        <span class="info-value"><?php echo date('d F Y', strtotime($event['tanggal'])); ?></span>
-                    </div>
-                    
-                    <?php if (!empty($event['waktu'])): ?>
-                    <div class="info-row">
-                        <span class="info-label"><i class="far fa-clock me-2"></i>Waktu:</span>
-                        <span class="info-value"><?php echo date('H:i', strtotime($event['waktu'])); ?> WIB</span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <div class="info-row">
-                        <span class="info-label"><i class="fas fa-map-marker-alt me-2"></i>Lokasi:</span>
-                        <span class="info-value"><?php echo htmlspecialchars($event['lokasi']); ?></span>
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <?php if ($event['biaya_pendaftaran'] > 0): ?>
-                    <div class="info-row">
-                        <span class="info-label"><i class="fas fa-money-bill-wave me-2"></i>Biaya:</span>
-                        <span class="info-value h5 text-success mb-0">Rp <?php echo number_format($event['biaya_pendaftaran'], 0, ',', '.'); ?></span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($event['kuota_peserta'] > 0): ?>
-                    <div class="info-row">
-                        <span class="info-label"><i class="fas fa-users me-2"></i>Kuota:</span>
-                        <span class="info-value">
-                            <span class="badge bg-primary rounded-pill"><?php echo number_format($jumlah_pendaftar ?? 0, 0, ',', '.'); ?></span>
-                            / <?php echo number_format($event['kuota_peserta'], 0, ',', '.'); ?> peserta
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
-                    <div class="info-row">
-                        <span class="info-label"><i class="fas fa-users me-2"></i>Tipe:</span>
-                        <span class="info-value">
-                            <span class="badge bg-info">Pendaftaran Tim</span>
-                            <small class="d-block mt-1">
-                                Minimal <?php echo $event['min_anggota']; ?> orang | 
-                                Maksimal <?php echo $event['max_anggota']; ?> orang
-                            </small>
-                        </span>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        
-        <!-- FORM CONTAINER -->
-        <div class="form-container">
-            <!-- HEADER -->
-            <div class="form-header">
-                <h2><i class="fas fa-file-signature me-2"></i>Formulir Pendaftaran</h2>
-                <h4>Lengkapi data diri Anda dengan benar</h4>
-            </div>
-            
-            <!-- BODY -->
-            <div class="form-body">
-                <?php if (!$pendaftaran_dibuka || $kuota_penuh): ?>
-                    <!-- PENDAFTARAN TUTUP / KUOTA PENUH -->
-                    <div class="error-box text-center">
-                        <i class="fas fa-times-circle fa-3x text-danger mb-3"></i>
-                        <h4>Pendaftaran Tidak Tersedia</h4>
-                        <p class="mb-4"><?php echo $alasan_tutup ?? 'Pendaftaran untuk event ini sudah ditutup'; ?></p>
-                        <div class="d-flex justify-content-center gap-3">
-                            <a href="event.php" class="btn btn-primary">
-                                <i class="fas fa-arrow-left me-2"></i> Kembali ke Event
-                            </a>
-                            <a href="detail_event.php?id=<?php echo $event_id; ?>" class="btn btn-outline-primary">
-                                <i class="fas fa-info-circle me-2"></i> Detail Event
-                            </a>
-                        </div>
-                    </div>
-                    
-                <?php elseif (!empty($event['link_pendaftaran'])): ?>
-                    <!-- PENDAFTARAN VIA GOOGLE FORM -->
-                    <div class="info-box text-center">
-                        <i class="fab fa-google fa-3x mb-3" style="color: #4285F4;"></i>
-                        <h4>Pendaftaran via Google Form</h4>
-                        <p class="mb-4">Event ini menggunakan Google Form untuk pendaftaran. Klik tombol di bawah untuk mengisi formulir.</p>
-                        
-                        <div class="d-grid gap-3 d-md-block">
-                            <a href="<?php echo htmlspecialchars($event['link_pendaftaran']); ?>" 
-                               class="btn btn-success btn-lg px-5" target="_blank">
-                                <i class="fab fa-google me-2"></i> Buka Google Form
-                            </a>
-                            <a href="event.php" class="btn btn-outline-secondary">
-                                <i class="fas fa-times me-2"></i> Batal
-                            </a>
-                        </div>
-                        
-                        <div class="mt-4">
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                Form akan terbuka di tab baru. Pastikan data Anda tersimpan.
-                            </small>
-                        </div>
-                    </div>
-                    
-                <?php elseif ($success): ?>
-                    <!-- SUCCESS MESSAGE -->
-                    <div class="success-box">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                        <h3>Pendaftaran Berhasil!</h3>
-                        <p class="lead">Terima kasih telah mendaftar event <strong><?php echo htmlspecialchars($event['judul']); ?></strong></p>
-                        
-                        <div class="alert alert-primary mt-4" style="background: #e3f2fd; border-color: #2196F3;">
-                            <h5><i class="fas fa-id-card me-2"></i>ID Pendaftaran Anda</h5>
-                            <p class="display-4 text-primary fw-bold mb-1"><?php echo str_pad($pendaftaran_id, 6, '0', STR_PAD_LEFT); ?></p>
-                            <small class="text-muted">Simpan ID ini untuk keperluan verifikasi</small>
-                        </div>
-                        
-                        <div class="mt-4 text-start">
-                            <p class="mb-2">
-                                <i class="fas fa-envelope me-2 text-primary"></i>
-                                Konfirmasi pendaftaran telah dikirim ke email Anda.
-                            </p>
-                            <p>
-                                <i class="fas fa-phone me-2 text-primary"></i>
-                                Admin akan menghubungi melalui WhatsApp untuk informasi selanjutnya.
-                            </p>
-                        </div>
-                        
-                        <div class="mt-4">
-                            <a href="event.php" class="btn btn-primary me-3">
-                                <i class="fas fa-list me-2"></i> Lihat Event Lainnya
-                            </a>
-                            <a href="index.php" class="btn btn-outline-primary">
-                                <i class="fas fa-home me-2"></i> Kembali ke Beranda
-                            </a>
-                        </div>
-                    </div>
-                    
-                <?php else: ?>
-                    <!-- FORM PENDAFTARAN WEBSITE -->
-                    
-                    <?php if (!empty($error)): ?>
-                    <div class="error-box">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        <?php echo $error; ?>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
-                    <div class="info-box">
-                        <i class="fas fa-users me-2"></i>
-                        <strong>Pendaftaran Tim</strong>
-                        <p class="mb-0">Isi data ketua tim dan anggota tim sesuai jumlah yang dibutuhkan.</p>
-                        <small>Minimal <?php echo $event['min_anggota']; ?> orang | Maksimal <?php echo $event['max_anggota']; ?> orang</small>
-                    </div>
-                    <?php else: ?>
-                    <div class="info-box">
-                        <i class="fas fa-user me-2"></i>
-                        <strong>Pendaftaran Individu</strong>
-                        <p class="mb-0">Isi data diri Anda untuk mendaftar event ini.</p>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <!-- FORM -->
-                    <form method="POST" action="?event_id=<?php echo $event_id; ?>" id="formPendaftaran">
-                        
-                        <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
-                            <!-- ============= FORM UNTUK TIM ============= -->
-                            <div class="form-section">
-                                <h4 class="section-title"><i class="fas fa-crown me-2"></i>Data Ketua Tim</h4>
-                                
-                                <div class="row">
-                                    <div class="col-md-12 mb-3">
-                                        <label class="form-label required">Nama Tim</label>
-                                        <input type="text" name="nama_tim" class="form-control form-control-lg" 
-                                               placeholder="Contoh: Tim Bintang, Warriors, dll" required
-                                               value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>">
-                                    </div>
-                                </div>
-                                
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">Nama Ketua Tim</label>
-                                        <input type="text" name="ketua_nama" class="form-control" required
-                                               value="<?php echo isset($_POST['ketua_nama']) ? htmlspecialchars($_POST['ketua_nama']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">NIM Ketua</label>
-                                        <input type="text" name="ketua_nim" class="form-control"
-                                               value="<?php echo isset($_POST['ketua_nim']) ? htmlspecialchars($_POST['ketua_nim']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">Email Ketua</label>
-                                        <input type="email" name="ketua_email" class="form-control" required
-                                               value="<?php echo isset($_POST['ketua_email']) ? htmlspecialchars($_POST['ketua_email']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">No HP/WhatsApp Ketua</label>
-                                        <input type="tel" name="ketua_no_hp" class="form-control" required
-                                               placeholder="0812-3456-7890"
-                                               value="<?php echo isset($_POST['ketua_no_hp']) ? htmlspecialchars($_POST['ketua_no_hp']) : ''; ?>">
-                                        <small class="text-muted">Format: 0812-3456-7890</small>
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Jurusan Ketua</label>
-                                        <select name="ketua_jurusan" class="form-select">
-                                            <option value="">Pilih Jurusan</option>
-                                            <option value="Teknik Informatika" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Teknik Informatika') ? 'selected' : ''; ?>>Teknik Informatika</option>
-                                            <option value="Sistem Informasi" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Sistem Informasi') ? 'selected' : ''; ?>>Sistem Informasi</option>
-                                            <option value="Teknik Elektro" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Teknik Elektro') ? 'selected' : ''; ?>>Teknik Elektro</option>
-                                            <option value="Akuntansi" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Akuntansi') ? 'selected' : ''; ?>>Akuntansi</option>
-                                            <option value="Manajemen" <?php echo (isset($_POST['ketua_jurusan']) && $_POST['ketua_jurusan'] == 'Manajemen') ? 'selected' : ''; ?>>Manajemen</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Angkatan</label>
-                                        <select name="ketua_angkatan" class="form-select">
-                                            <option value="">Pilih Angkatan</option>
-                                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
-                                            <option value="<?php echo $year; ?>" <?php echo (isset($_POST['ketua_angkatan']) && $_POST['ketua_angkatan'] == $year) ? 'selected' : ''; ?>>
-                                                <?php echo $year; ?>
-                                            </option>
-                                            <?php endfor; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- ANGGOTA TIM -->
-                            <div class="anggota-section">
-                                <div class="anggota-header">
-                                    <h4 class="section-title mb-0"><i class="fas fa-users me-2"></i>Anggota Tim</h4>
-                                    <div class="anggota-counter">
-                                        Anggota: <span id="anggotaCount">1</span>/<?php echo $event['max_anggota']; ?>
-                                    </div>
-                                </div>
-                                
-                                <p class="mb-3">Minimal <?php echo $event['min_anggota']; ?> orang | Maksimal <?php echo $event['max_anggota']; ?> orang</p>
-                                
-                                <div id="anggotaContainer">
-                                    <!-- Anggota akan ditambahkan dinamis di sini -->
-                                </div>
-                                
-                                <!-- TOMBOL TAMBAH ANGGOTA -->
-                                <button type="button" class="btn-add-anggota" id="btnTambahAnggota">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                                <p class="text-center text-muted mt-2 mb-0">Klik untuk tambah anggota tim</p>
-                            </div>
-                            
-                        <?php else: ?>
-                            <!-- ============= FORM UNTUK INDIVIDU ============= -->
-                            <div class="form-section">
-                                <h4 class="section-title"><i class="fas fa-user me-2"></i>Data Pribadi</h4>
-                                
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">Nama Lengkap</label>
-                                        <input type="text" name="nama" class="form-control" required
-                                               value="<?php echo isset($_POST['nama']) ? htmlspecialchars($_POST['nama']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">NIM</label>
-                                        <input type="text" name="nim" class="form-control"
-                                               value="<?php echo isset($_POST['nim']) ? htmlspecialchars($_POST['nim']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">Email</label>
-                                        <input type="email" name="email" class="form-control" required
-                                               value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label required">No HP/WhatsApp</label>
-                                        <input type="tel" name="no_hp" class="form-control" required
-                                               placeholder="0812-3456-7890"
-                                               value="<?php echo isset($_POST['no_hp']) ? htmlspecialchars($_POST['no_hp']) : ''; ?>">
-                                        <small class="text-muted">Format: 0812-3456-7890</small>
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Jurusan</label>
-                                        <select name="jurusan" class="form-select">
-                                            <option value="">Pilih Jurusan</option>
-                                            <option value="Teknik Informatika" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Teknik Informatika') ? 'selected' : ''; ?>>Teknik Informatika</option>
-                                            <option value="Sistem Informasi" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Sistem Informasi') ? 'selected' : ''; ?>>Sistem Informasi</option>
-                                            <option value="Teknik Elektro" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Teknik Elektro') ? 'selected' : ''; ?>>Teknik Elektro</option>
-                                            <option value="Akuntansi" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Akuntansi') ? 'selected' : ''; ?>>Akuntansi</option>
-                                            <option value="Manajemen" <?php echo (isset($_POST['jurusan']) && $_POST['jurusan'] == 'Manajemen') ? 'selected' : ''; ?>>Manajemen</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="col-md-6 mb-3">
-                                        <label class="form-label">Angkatan</label>
-                                        <select name="angkatan" class="form-select">
-                                            <option value="">Pilih Angkatan</option>
-                                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
-                                            <option value="<?php echo $year; ?>" <?php echo (isset($_POST['angkatan']) && $_POST['angkatan'] == $year) ? 'selected' : ''; ?>>
-                                                <?php echo $year; ?>
-                                            </option>
-                                            <?php endfor; ?>
-                                        </select>
-                                    </div>
-                                    
-                                    <?php if ($event['tipe_pendaftaran'] == 'individu_tim'): ?>
-                                    <div class="col-md-12 mb-3">
-                                        <label class="form-label">Nama Tim/Kelompok (Opsional)</label>
-                                        <input type="text" name="nama_tim" class="form-control" 
-                                               placeholder="Kosongkan jika mendaftar sendiri"
-                                               value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>">
-                                        <small class="text-muted">Isi jika ingin mendaftar sebagai kelompok</small>
-                                    </div>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="form-section">
-                                <h4 class="section-title"><i class="fas fa-comment-dots me-2"></i>Motivasi & Harapan</h4>
-                                <div class="mb-4">
-                                    <textarea name="motivasi" class="form-control" rows="5" 
-                                              placeholder="Ceritakan mengapa Anda ingin mengikuti event ini dan apa harapan Anda..."><?php echo isset($_POST['motivasi']) ? htmlspecialchars($_POST['motivasi']) : ''; ?></textarea>
-                                </div>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <!-- BUTTONS -->
-                        <div class="border-top pt-4 mt-4">
-                            <div class="d-flex justify-content-between">
-                                <a href="event.php" class="btn btn-outline-secondary px-4">
-                                    <i class="fas fa-times me-1"></i> Batal
-                                </a>
-                                
-                                <button type="submit" class="btn btn-primary btn-lg px-5">
-                                    <i class="fas fa-paper-plane me-1"></i>
-                                    Kirim Pendaftaran
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                <?php endif; ?>
-            </div>
-        </div>
-        
-        <!-- INFO TAMBAHAN -->
-        <div class="alert alert-info mt-3">
-            <div class="row align-items-center">
-                <div class="col-md-8">
-                    <h5><i class="fas fa-info-circle me-2"></i> Informasi Penting</h5>
-                    <p class="mb-0">Pastikan data yang Anda isi benar dan valid. Data akan digunakan untuk proses seleksi dan sertifikat.</p>
-                </div>
-                <div class="col-md-4 text-md-end">
-                    <a href="event.php" class="btn btn-outline-primary">
-                        <i class="fas fa-calendar me-2"></i> Lihat Event Lainnya
+                    <a href="detail_event.php?id=<?php echo $event_id; ?>" class="btn btn-light">
+                        <i class="fas fa-arrow-left me-2"></i> Kembali ke Detail
                     </a>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- FOOTER -->
-    <div class="registration-footer">
-        <div class="container">
-            <p class="mb-2">Politeknik Negeri Batam - Sistem Pendaftaran Event</p>
-            <div class="footer-links">
-                <a href="index.php">Beranda</a> |
-                <a href="event.php">Event</a> |
-                <a href="berita.php">Berita</a> |
-                <a href="admin/login.php">Admin</a>
+    <div class="container">
+        <!-- NOTIFIKASI -->
+        <?php if (!empty($errors)): ?>
+            <div class="alert alert-danger alert-custom alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+                    <div>
+                        <h5 class="mb-1">Terjadi Kesalahan!</h5>
+                        <ul class="mb-0 ps-3">
+                            <?php foreach ($errors as $error): ?>
+                                <li><?php echo htmlspecialchars($error); ?></li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
-            <p class="mt-3 mb-0">
-                <small>&copy; 2025 Portal Informasi Kampus. Semua hak dilindungi.</small>
-            </p>
+        <?php endif; ?>
+        
+        <!-- INFO BOX -->
+        <div class="info-box">
+            <div class="row">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-info-circle me-2"></i>Informasi Pendaftaran</h5>
+                    <p class="mb-2">
+                        <strong>Status:</strong> 
+                        <?php if ($event_passed): ?>
+                            <span class="badge bg-secondary">Event sudah berlalu</span>
+                        <?php elseif ($is_full): ?>
+                            <span class="badge bg-danger">Kuota penuh</span>
+                        <?php else: ?>
+                            <span class="badge bg-success">Pendaftaran dibuka</span>
+                        <?php endif; ?>
+                    </p>
+                    
+                    <?php if ($kuota > 0): ?>
+                    <div class="quota-status">
+                        <span><strong>Kuota:</strong> <?php echo $remaining ?? $kuota; ?> tersisa dari <?php echo $kuota; ?></span>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" 
+                                 style="width: <?php echo min(100, ($registered_count/$kuota)*100); ?>%"></div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                
+                <?php if ($biaya > 0): ?>
+                <div class="col-md-4">
+                    <div class="fee-box">
+                        <h5><i class="fas fa-money-bill-wave me-2"></i>Biaya Pendaftaran</h5>
+                        <h3 class="text-warning mb-0">Rp <?php echo number_format($biaya, 0, ',', '.'); ?></h3>
+                        <small class="text-muted"><?php echo $tipe == 'tim' ? 'per tim' : 'per orang'; ?></small>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
         </div>
+        
+        <!-- CEK APAKAH MASIH BISA DAFTAR -->
+        <?php if ($event_passed): ?>
+            <div class="alert alert-warning text-center py-4">
+                <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                <h4>Pendaftaran Ditutup</h4>
+                <p class="mb-0">Maaf, pendaftaran untuk event ini sudah ditutup karena event sudah berlalu.</p>
+            </div>
+        <?php elseif ($is_full): ?>
+            <div class="alert alert-danger text-center py-4">
+                <i class="fas fa-users-slash fa-3x mb-3"></i>
+                <h4>Kuota Penuh</h4>
+                <p class="mb-0">Maaf, kuota pendaftaran untuk event ini sudah penuh.</p>
+            </div>
+        <?php else: ?>
+            <!-- FORM CONTAINER -->
+            <div class="form-container">
+                <form method="POST" id="pendaftaranForm">
+                    
+                    <!-- PILIH TIPE PENDAFTARAN -->
+                    <?php if ($tipe == 'individu_tim'): ?>
+                    <div class="form-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-users"></i> Tipe Pendaftaran
+                        </h4>
+                        
+                        <div class="tipe-selection">
+                            <div class="tipe-card <?php echo ($_POST['tipe_daftar'] ?? 'individu') == 'individu' ? 'active' : ''; ?>" 
+                                 data-tipe="individu" onclick="selectTipe('individu')">
+                                <div class="tipe-icon">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <h4>Individu</h4>
+                                <p class="text-muted">Daftar sendiri tanpa tim</p>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tipe_daftar" 
+                                           value="individu" id="tipeIndividu" 
+                                           <?php echo ($_POST['tipe_daftar'] ?? 'individu') == 'individu' ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="tipeIndividu">
+                                        Pilih Individu
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="tipe-card <?php echo ($_POST['tipe_daftar'] ?? '') == 'tim' ? 'active' : ''; ?>" 
+                                 data-tipe="tim" onclick="selectTipe('tim')">
+                                <div class="tipe-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <h4>Tim</h4>
+                                <p class="text-muted">Daftar sebagai tim</p>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="tipe_daftar" 
+                                           value="tim" id="tipeTim" 
+                                           <?php echo ($_POST['tipe_daftar'] ?? '') == 'tim' ? 'checked' : ''; ?>>
+                                    <label class="form-check-label" for="tipeTim">
+                                        Pilih Tim
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-box" id="tipeInfo">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            <span id="tipeInfoText">
+                                <?php if (($tipe == 'individu') || ($_POST['tipe_daftar'] ?? 'individu') == 'individu'): ?>
+                                    Anda akan mendaftar sebagai individu.
+                                <?php else: ?>
+                                    Anda akan mendaftar sebagai tim. Minimal <?php echo $min_anggota; ?> orang, maksimal <?php echo $max_anggota; ?> orang.
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                        <input type="hidden" name="tipe_daftar" value="<?php echo $tipe; ?>">
+                    <?php endif; ?>
+                    
+                    <!-- NAMA TIM (Hanya untuk tim) -->
+                    <div class="form-section" id="timSection" style="<?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? '' : 'display: none;'; ?>">
+                        <h4 class="section-title">
+                            <i class="fas fa-flag"></i> Data Tim
+                        </h4>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Nama Tim <span class="text-danger">*</span></label>
+                                    <input type="text" name="nama_tim" class="form-control" 
+                                           value="<?php echo $_POST['nama_tim'] ?? ''; ?>" 
+                                           placeholder="Contoh: Tim Jaya Makmur" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Jumlah Anggota <span class="text-danger">*</span></label>
+                                    <select name="jumlah_anggota" class="form-select" id="jumlahAnggota" required>
+                                        <option value="">Pilih jumlah anggota</option>
+                                        <?php for ($i = $min_anggota; $i <= $max_anggota; $i++): ?>
+                                        <option value="<?php echo $i; ?>" 
+                                            <?php echo ($_POST['jumlah_anggota'] ?? $min_anggota) == $i ? 'selected' : ''; ?>>
+                                            <?php echo $i; ?> orang
+                                        </option>
+                                        <?php endfor; ?>
+                                    </select>
+                                    <div class="form-text">
+                                        Minimal <?php echo $min_anggota; ?> orang, maksimal <?php echo $max_anggota; ?> orang
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- DATA ANGGOTA -->
+                    <div class="form-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-user-friends"></i> 
+                            <span id="anggotaTitle">
+                                <?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? 'Data Anggota Tim' : 'Data Diri'; ?>
+                            </span>
+                        </h4>
+                        
+                        <div id="anggotaContainer">
+                            <!-- Anggota akan ditambahkan dinamis di sini -->
+                            <?php
+                            $jumlah_anggota = $_POST['jumlah_anggota'] ?? 1;
+                            $current_members = max(1, $jumlah_anggota);
+                            
+                            for ($i = 0; $i < $current_members; $i++):
+                            ?>
+                            <div class="anggota-card" data-index="<?php echo $i; ?>">
+                                <?php if ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim'): ?>
+                                <div class="anggota-header">
+                                    <span class="anggota-label">Anggota <?php echo $i + 1; ?></span>
+                                    <?php if ($i == 0): ?>
+                                        <span class="badge-ketua">Ketua Tim</span>
+                                    <?php endif; ?>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                            <input type="text" name="nama[]" class="form-control" 
+                                                   value="<?php echo $_POST['nama'][$i] ?? ''; ?>" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">NPM <span class="text-danger">*</span></label>
+                                            <input type="text" name="npm[]" class="form-control" 
+                                                   value="<?php echo $_POST['npm'][$i] ?? ''; ?>" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <input type="email" name="email[]" class="form-control" 
+                                                   value="<?php echo $_POST['email'][$i] ?? ''; ?>" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">No. WhatsApp <span class="text-danger">*</span></label>
+                                            <input type="tel" name="wa[]" class="form-control" 
+                                                   value="<?php echo $_POST['wa'][$i] ?? ''; ?>" required>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <div class="mb-3">
+                                            <label class="form-label">Jurusan/Fakultas</label>
+                                            <input type="text" name="jurusan[]" class="form-control" 
+                                                   value="<?php echo $_POST['jurusan'][$i] ?? ''; ?>" 
+                                                   placeholder="Contoh: Teknik Informatika">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endfor; ?>
+                        </div>
+                        
+                        <?php if ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim'): ?>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-add" id="tambahAnggota">
+                                <i class="fas fa-plus me-2"></i>Tambah Anggota
+                            </button>
+                            <button type="button" class="btn btn-remove" id="hapusAnggota">
+                                <i class="fas fa-minus me-2"></i>Hapus Anggota
+                            </button>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <!-- KONFIRMASI -->
+                    <div class="form-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-check-circle"></i> Konfirmasi
+                        </h4>
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                            <label class="form-check-label" for="agreeTerms">
+                                Saya menyetujui syarat dan ketentuan yang berlaku. Data yang saya berikan adalah benar dan dapat dipertanggungjawabkan.
+                            </label>
+                        </div>
+                        
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-submit">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                <?php echo $tipe == 'tim' ? 'Daftarkan Tim' : 'Daftar Sekarang'; ?>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        <?php endif; ?>
+        
+        <!-- FOOTER -->
+        <footer class="text-center text-muted mt-5">
+            <hr>
+            <p class="mb-0">
+                &copy; <?php echo date('Y'); ?> Sistem Pendaftaran Event Kampus
+                | <a href="detail_event.php?id=<?php echo $event_id; ?>" class="text-decoration-none">Kembali ke Detail Event</a>
+            </p>
+        </footer>
     </div>
     
     <!-- SCRIPTS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
     <script>
-        <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
-        // ============= JAVASCRIPT UNTUK TIM =============
-        let anggotaCount = 1; // Ketua sudah dihitung
-        const maxAnggota = <?php echo $event['max_anggota']; ?>;
-        const minAnggota = <?php echo $event['min_anggota']; ?>;
-        let anggotaIndex = 0;
+        // KONFIGURASI
+        const minAnggota = <?php echo $min_anggota; ?>;
+        const maxAnggota = <?php echo $max_anggota; ?>;
+        const tipeEvent = "<?php echo $tipe; ?>";
         
-        // Fungsi tambah anggota
-        document.getElementById('btnTambahAnggota').addEventListener('click', function() {
-            if (anggotaCount >= maxAnggota) {
-                alert('Maksimal ' + maxAnggota + ' anggota sudah tercapai!');
-                this.disabled = true;
-                return;
-            }
-            
-            anggotaIndex++;
-            anggotaCount++;
-            
-            const container = document.getElementById('anggotaContainer');
-            const newCard = document.createElement('div');
-            newCard.className = 'anggota-card';
-            newCard.id = 'anggotaCard-' + anggotaIndex;
-            
-            newCard.innerHTML = `
-                <div class="anggota-header">
-                    <h5 class="mb-0"><i class="fas fa-user me-1"></i> Anggota ${anggotaIndex + 1}</h5>
-                    <small class="text-muted">Data anggota tim</small>
-                </div>
-                <div class="row">
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label required">Nama Lengkap</label>
-                        <input type="text" name="anggota_nama_${anggotaIndex}" class="form-control" 
-                               placeholder="Nama anggota" required>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label">NIM</label>
-                        <input type="text" name="anggota_nim_${anggotaIndex}" class="form-control" 
-                               placeholder="NIM anggota">
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label">Jurusan</label>
-                        <select name="anggota_jurusan_${anggotaIndex}" class="form-select">
-                            <option value="">Pilih Jurusan</option>
-                            <option value="Teknik Informatika">Teknik Informatika</option>
-                            <option value="Sistem Informasi">Sistem Informasi</option>
-                            <option value="Teknik Elektro">Teknik Elektro</option>
-                            <option value="Akuntansi">Akuntansi</option>
-                            <option value="Manajemen">Manajemen</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6 mb-2">
-                        <label class="form-label">Angkatan</label>
-                        <select name="anggota_angkatan_${anggotaIndex}" class="form-select">
-                            <option value="">Pilih Angkatan</option>
-                            <?php for ($year = date('Y'); $year >= 2015; $year--): ?>
-                            <option value="<?php echo $year; ?>"><?php echo $year; ?></option>
-                            <?php endfor; ?>
-                        </select>
-                    </div>
-                </div>
-                <button type="button" class="btn-remove-anggota" onclick="hapusAnggota(${anggotaIndex})">
-                    <i class="fas fa-trash me-1"></i> Hapus Anggota
-                </button>
-            `;
-            
-            container.appendChild(newCard);
-            updateAnggotaCounter();
-        });
+        // VARIABLES
+        let currentAnggotaCount = <?php echo $current_members ?? 1; ?>;
         
-        // Fungsi hapus anggota
-        function hapusAnggota(index) {
-            if (anggotaCount <= minAnggota) {
-                alert('Minimal ' + minAnggota + ' anggota harus diisi!');
-                return;
-            }
+        // FUNGSI SELECT TIPE (hanya untuk individu_tim)
+        function selectTipe(tipe) {
+            document.querySelectorAll('.tipe-card').forEach(card => {
+                card.classList.remove('active');
+            });
             
-            const card = document.getElementById('anggotaCard-' + index);
-            if (card) {
-                card.remove();
-                anggotaCount--;
-                document.getElementById('btnTambahAnggota').disabled = false;
-                updateAnggotaCounter();
-            }
-        }
-        
-        // Fungsi update counter
-        function updateAnggotaCounter() {
-            document.getElementById('anggotaCount').textContent = anggotaCount;
+            document.querySelector(`[data-tipe="${tipe}"]`).classList.add('active');
+            document.getElementById(`tipe${tipe.charAt(0).toUpperCase() + tipe.slice(1)}`).checked = true;
             
-            // Update warna counter
-            const counter = document.querySelector('.anggota-counter');
-            if (anggotaCount < minAnggota) {
-                counter.style.background = '#dc3545';
-            } else if (anggotaCount >= maxAnggota) {
-                counter.style.background = '#28a745';
+            // Update info
+            const infoText = document.getElementById('tipeInfoText');
+            const timSection = document.getElementById('timSection');
+            const anggotaTitle = document.getElementById('anggotaTitle');
+            
+            if (tipe === 'individu') {
+                infoText.textContent = 'Anda akan mendaftar sebagai individu.';
+                timSection.style.display = 'none';
+                anggotaTitle.textContent = 'Data Diri';
+                currentAnggotaCount = 1;
+                updateAnggotaCards();
             } else {
-                counter.style.background = '#0056b3';
+                infoText.textContent = `Anda akan mendaftar sebagai tim. Minimal ${minAnggota} orang, maksimal ${maxAnggota} orang.`;
+                timSection.style.display = 'block';
+                anggotaTitle.textContent = 'Data Anggota Tim';
+                currentAnggotaCount = minAnggota;
+                updateAnggotaCards();
             }
         }
         
-        // Validasi form sebelum submit
-        document.getElementById('formPendaftaran').addEventListener('submit', function(e) {
-            if (anggotaCount < minAnggota) {
+        // FUNGSI UPDATE JUMLAH ANGGOTA
+        function updateAnggotaCards() {
+            const container = document.getElementById('anggotaContainer');
+            const jumlahSelect = document.getElementById('jumlahAnggota');
+            
+            // Update select jika ada
+            if (jumlahSelect) {
+                jumlahSelect.value = currentAnggotaCount;
+            }
+            
+            // Update tampilan kartu
+            container.innerHTML = '';
+            
+            for (let i = 0; i < currentAnggotaCount; i++) {
+                const isKetua = i === 0;
+                const anggotaHTML = `
+                    <div class="anggota-card" data-index="${i}">
+                        ${tipeEvent === 'tim' || document.querySelector('input[name="tipe_daftar"]:checked')?.value === 'tim' ? `
+                        <div class="anggota-header">
+                            <span class="anggota-label">Anggota ${i + 1}</span>
+                            ${isKetua ? '<span class="badge-ketua">Ketua Tim</span>' : ''}
+                        </div>
+                        ` : ''}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                    <input type="text" name="nama[]" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">NPM <span class="text-danger">*</span></label>
+                                    <input type="text" name="npm[]" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="email[]" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">No. WhatsApp <span class="text-danger">*</span></label>
+                                    <input type="tel" name="wa[]" class="form-control" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label class="form-label">Jurusan/Fakultas</label>
+                                    <input type="text" name="jurusan[]" class="form-control" placeholder="Contoh: Teknik Informatika">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                container.insertAdjacentHTML('beforeend', anggotaHTML);
+            }
+        }
+        
+        // FUNGSI TAMBAH ANGGOTA
+        document.getElementById('tambahAnggota')?.addEventListener('click', function() {
+            if (currentAnggotaCount < maxAnggota) {
+                currentAnggotaCount++;
+                updateAnggotaCards();
+            } else {
+                alert(`Maksimal anggota tim adalah ${maxAnggota} orang.`);
+            }
+        });
+        
+        // FUNGSI HAPUS ANGGOTA
+        document.getElementById('hapusAnggota')?.addEventListener('click', function() {
+            if (currentAnggotaCount > minAnggota) {
+                currentAnggotaCount--;
+                updateAnggotaCards();
+            } else {
+                alert(`Minimal anggota tim adalah ${minAnggota} orang.`);
+            }
+        });
+        
+        // CHANGE JUMLAH ANGGOTA DARI SELECT
+        document.getElementById('jumlahAnggota')?.addEventListener('change', function() {
+            const selectedValue = parseInt(this.value);
+            if (selectedValue >= minAnggota && selectedValue <= maxAnggota) {
+                currentAnggotaCount = selectedValue;
+                updateAnggotaCards();
+            }
+        });
+        
+        // FORM VALIDATION
+        document.getElementById('pendaftaranForm')?.addEventListener('submit', function(e) {
+            // Validasi checkbox
+            const agreeCheckbox = document.getElementById('agreeTerms');
+            if (!agreeCheckbox.checked) {
                 e.preventDefault();
-                alert(`Minimal ${minAnggota} anggota harus diisi!`);
+                alert('Anda harus menyetujui syarat dan ketentuan terlebih dahulu.');
+                agreeCheckbox.focus();
                 return false;
             }
             
-            // Validasi email dan no HP
-            const email = document.querySelector('input[name="ketua_email"]').value;
-            const nohp = document.querySelector('input[name="ketua_no_hp"]').value;
+            // Validasi duplikat NPM
+            const npmInputs = document.querySelectorAll('input[name="npm[]"]');
+            const npmValues = [];
+            let hasDuplicate = false;
             
-            if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            npmInputs.forEach(input => {
+                const value = input.value.trim();
+                if (value) {
+                    if (npmValues.includes(value)) {
+                        hasDuplicate = true;
+                        input.classList.add('is-invalid');
+                    } else {
+                        npmValues.push(value);
+                        input.classList.remove('is-invalid');
+                    }
+                }
+            });
+            
+            if (hasDuplicate) {
                 e.preventDefault();
-                alert('Format email tidak valid!');
+                alert('Terdapat NPM yang sama pada anggota tim. Setiap anggota harus memiliki NPM yang unik.');
                 return false;
             }
             
-            if (!nohp.match(/^[0-9+\-\s]{10,15}$/)) {
+            // Validasi email duplikat
+            const emailInputs = document.querySelectorAll('input[name="email[]"]');
+            const emailValues = [];
+            let hasDuplicateEmail = false;
+            
+            emailInputs.forEach(input => {
+                const value = input.value.trim();
+                if (value) {
+                    if (emailValues.includes(value)) {
+                        hasDuplicateEmail = true;
+                        input.classList.add('is-invalid');
+                    } else {
+                        emailValues.push(value);
+                        input.classList.remove('is-invalid');
+                    }
+                }
+            });
+            
+            if (hasDuplicateEmail) {
                 e.preventDefault();
-                alert('Format nomor HP tidak valid! Harus 10-15 digit angka');
+                alert('Terdapat email yang sama pada anggota tim. Setiap anggota harus memiliki email yang unik.');
+                return false;
+            }
+            
+            // Confirmation
+            const tipeDaftar = document.querySelector('input[name="tipe_daftar"]:checked')?.value || tipeEvent;
+            const message = tipeDaftar === 'tim' 
+                ? `Apakah Anda yakin ingin mendaftarkan tim dengan ${currentAnggotaCount} anggota?`
+                : 'Apakah Anda yakin ingin mendaftarkan diri Anda?';
+            
+            if (!confirm(message)) {
+                e.preventDefault();
                 return false;
             }
             
             return true;
         });
         
-        // Auto format phone number
-        document.querySelector('input[name="ketua_no_hp"]')?.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 0) {
-                if (value.length <= 4) {
-                    value = value;
-                } else if (value.length <= 8) {
-                    value = value.slice(0, 4) + '-' + value.slice(4);
-                } else {
-                    value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
+        // AUTO-FORMAT WHATSAPP NUMBER
+        document.addEventListener('input', function(e) {
+            if (e.target.name === 'wa[]') {
+                let value = e.target.value.replace(/\D/g, '');
+                
+                // Add +62 prefix if starts with 0 or 8
+                if (value.startsWith('0')) {
+                    value = '62' + value.substring(1);
+                } else if (value.startsWith('8')) {
+                    value = '62' + value;
                 }
+                
+                e.target.value = value;
             }
-            e.target.value = value;
         });
         
-        // Inisialisasi counter
-        updateAnggotaCounter();
-        
-        <?php else: ?>
-        // ============= JAVASCRIPT UNTUK INDIVIDU =============
-        // Auto format phone number
-        document.querySelector('input[name="no_hp"]')?.addEventListener('input', function(e) {
-            let value = e.target.value.replace(/\D/g, '');
-            if (value.length > 0) {
-                if (value.length <= 4) {
-                    value = value;
-                } else if (value.length <= 8) {
-                    value = value.slice(0, 4) + '-' + value.slice(4);
-                } else {
-                    value = value.slice(0, 4) + '-' + value.slice(4, 8) + '-' + value.slice(8, 12);
-                }
-            }
-            e.target.value = value;
-        });
-        
-        // Validasi form
-        document.getElementById('formPendaftaran')?.addEventListener('submit', function(e) {
-            const email = document.querySelector('input[name="email"]')?.value;
-            const nohp = document.querySelector('input[name="no_hp"]')?.value;
+        // INITIALIZE
+        $(document).ready(function() {
+            // Auto fill jika ada session sebelumnya
+            const previousData = <?php echo json_encode($_POST ?? []); ?>;
             
-            if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                e.preventDefault();
-                alert('Format email tidak valid!');
-                return false;
+            if (Object.keys(previousData).length > 0) {
+                // Scroll to form
+                $('html, body').animate({
+                    scrollTop: $('#pendaftaranForm').offset().top - 100
+                }, 500);
             }
             
-            if (nohp && !nohp.match(/^[0-9+\-\s]{10,15}$/)) {
-                e.preventDefault();
-                alert('Format nomor HP tidak valid! Harus 10-15 digit angka');
-                return false;
-            }
-            
-            return true;
-        });
-        <?php endif; ?>
-        
-        // Auto-focus ke field pertama
-        document.addEventListener('DOMContentLoaded', function() {
-            const firstInput = document.querySelector('input[required]');
-            if (firstInput) {
-                firstInput.focus();
-            }
+            // Focus pertama input
+            setTimeout(() => {
+                const firstInput = document.querySelector('input[name="nama[]"]');
+                if (firstInput) firstInput.focus();
+            }, 300);
         });
     </script>
 </body>
 </html>
-<?php
-// Tutup koneksi
-$conn->close();
-?>
+<?php mysqli_close($conn); ?>

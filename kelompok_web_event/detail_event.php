@@ -71,8 +71,36 @@ $related_result = mysqli_query($conn, $related_query);
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
+        .navbar-nav .nav-link {
+            position: relative;
+            padding-bottom: 6px;
+        }
+
+        .navbar-nav .nav-link::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 0;
+            height: 2px;
+            background-color: #ffffffff;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .navbar-nav .nav-link:hover::after,
+        .navbar-nav .nav-link.active::after {
+            width: 100%;
+        }
+
         .navbar-brand img {
             height: 50px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 0 20px;
         }
 
         /* HEADER EVENT */
@@ -239,11 +267,12 @@ $related_result = mysqli_query($conn, $related_query);
     </style>
 </head>
 <body>
-    <!-- NAVBAR -->
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="index.php">
-                <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png" alt="Politeknik Negeri Batam">
+            <a class="navbar-brand" href="#">
+                <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png"
+                    alt="Politeknik Negeri Batam">
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -254,10 +283,10 @@ $related_result = mysqli_query($conn, $related_query);
                         <a class="nav-link" href="index.php">Beranda</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="berita.php">Berita</a>
+                        <a class="nav-link" href="berita.php">Berita Kampus</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="event.php">Event</a>
+                        <a class="nav-link active" href="event.php">Event & Kegiatan</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="admin/login.php">Admin</a>
@@ -306,12 +335,11 @@ $related_result = mysqli_query($conn, $related_query);
                 </div>
 
                 <!-- TOMBOL DAFTAR -->
-                <?php if (!empty($event['link_pendaftaran'])): ?>
-                <a href="<?php echo htmlspecialchars($event['link_pendaftaran']); ?>" 
-                   target="_blank" class="btn-daftar">
-                    <i class="fas fa-user-plus"></i> Daftar Sekarang
-                </a>
-                <?php endif; ?>
+               <?php if ($event['status'] == 'publik' && strtotime($event['tanggal']) >= strtotime(date('Y-m-d'))): ?>
+    <a href="daftar.php?id=<?php echo $event['id']; ?>" class="btn btn-success btn-lg">
+        <i class="fas fa-user-plus me-2"></i> Daftar Sekarang
+    </a>
+<?php endif; ?>
             </div>
         </div>
     </div>

@@ -696,37 +696,7 @@ $default_images = [
     <footer class="footer">
         <div class="container">
 
-    <!-- STATS BAR -->
-    <div class="stats-bar">
-        <div class="container">
-            <div class="row text-center">
-                <div class="col-md-3">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo count($berita); ?></span>
-                        <span class="stat-label">Berita Terkini</span>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-item">
-                        <span class="stat-number"><?php echo count($events); ?></span>
-                        <span class="stat-label">Event Aktif</span>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-item">
-                        <span class="stat-number">2025</span>
-                        <span class="stat-label">Tahun Akademik</span>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="stat-item">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Update Informasi</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <h5>Politeknik Negeri Batam</h5>

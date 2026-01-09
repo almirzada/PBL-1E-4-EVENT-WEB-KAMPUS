@@ -238,7 +238,7 @@ $kategori_berita = [
                     <a href="dashboard.php" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
-                    <a href="berita.php" class="nav-link active">
+                    <a href="daftar_berita.php" class="nav-link active">
                         <i class="fas fa-newspaper"></i> <span class="menu-text">Kelola Berita</span>
                     </a>
                     <a href="tambah_berita.php" class="nav-link">
