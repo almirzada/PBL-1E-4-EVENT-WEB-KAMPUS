@@ -469,8 +469,8 @@ $total_selesai = mysqli_num_rows($selesai_events);
                         <a href="pengaturan.php" class="nav-link">
                             <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
                         </a>
-                        <a href="management_user.php" class="nav-link">
-                            <i class="fas fa-users"></i> <span class="menu-text">Pengguna</span>
+                        <a href="admin_peserta.php" class="nav-link">
+                            <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
                         </a>
                         <a href="pengaturan.php" class="nav-link">
                             <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>

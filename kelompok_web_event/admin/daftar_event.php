@@ -411,7 +411,7 @@ $stats = [
 </head>
 <body>
     <div class="admin-wrapper">
-        <!-- SIDEBAR -->
+       <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-header text-center">
                 <h4><i class="fas fa-calendar-alt"></i> <span class="menu-text">PortalKampus</span></h4>
@@ -420,7 +420,7 @@ $stats = [
             
             <div class="sidebar-menu">
                 <nav class="nav flex-column">
-                    <a href="dashboard.php" class="nav-link">
+                    <a href="dashboard.php" class="nav-link active">
                         <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
                     
@@ -430,7 +430,7 @@ $stats = [
                         <a href="form.php" class="nav-link">
                             <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Event</span>
                         </a>
-                        <a href="daftar_event.php" class="nav-link active">
+                        <a href="daftar_event.php" class="nav-link">
                             <i class="fas fa-list"></i> <span class="menu-text">Semua Event</span>
                         </a>
                     </div>
@@ -452,8 +452,11 @@ $stats = [
                         <a href="pengaturan.php" class="nav-link">
                             <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
                         </a>
-                        <a href="management_user.php" class="nav-link">
-                            <i class="fas fa-users"></i> <span class="menu-text">Pengguna</span>
+                        <a href="admin_peserta.php" class="nav-link">
+                            <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
+                        </a>
+                        <a href="pengaturan.php" class="nav-link">
+                            <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>
                         </a>
                     </div>
                     

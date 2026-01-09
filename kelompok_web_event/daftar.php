@@ -39,6 +39,7 @@ $biaya = $event['biaya_pendaftaran'];
 $tipe = $event['tipe_pendaftaran'];
 $min_anggota = $event['min_anggota'];
 $max_anggota = $event['max_anggota'];
+$berbayar = $biaya > 0;
 
 // Cek apakah event sudah lewat
 $event_passed = strtotime($tanggal_event) < strtotime($today);
@@ -66,14 +67,14 @@ if ($kuota > 0) {
 // ================================================
 // PROSES PENDAFTARAN
 // ================================================
-$errors = [];
+$errors = array();
 $success = false;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    // Ambil data dasar
-    $nama_tim = mysqli_real_escape_string($conn, $_POST['nama_tim'] ?? '');
-    $tipe_daftar = $_POST['tipe_daftar'] ?? 'individu';
-    $jumlah_anggota = intval($_POST['jumlah_anggota'] ?? 1);
+    // Ambil data dasar dengan cek isset()
+    $nama_tim = isset($_POST['nama_tim']) ? mysqli_real_escape_string($conn, $_POST['nama_tim']) : '';
+    $tipe_daftar = isset($_POST['tipe_daftar']) ? $_POST['tipe_daftar'] : 'individu';
+    $jumlah_anggota = isset($_POST['jumlah_anggota']) ? intval($_POST['jumlah_anggota']) : 1;
     
     // Validasi berdasarkan tipe
     if ($tipe == 'tim' && $tipe_daftar != 'tim') {
@@ -104,6 +105,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $errors[] = 'Maaf, kuota pendaftaran sudah penuh!';
     }
     
+    // Validasi upload bukti pembayaran jika berbayar
+    $bukti_pembayaran = null;
+    if ($berbayar) {
+        if (isset($_FILES['bukti_pembayaran']) && $_FILES['bukti_pembayaran']['error'] == UPLOAD_ERR_OK) {
+            $allowed_extensions = array('jpg', 'jpeg', 'png', 'gif', 'pdf');
+            $file_name = $_FILES['bukti_pembayaran']['name'];
+            $file_tmp = $_FILES['bukti_pembayaran']['tmp_name'];
+            $file_size = $_FILES['bukti_pembayaran']['size'];
+            $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+            
+            // Validasi ekstensi file
+            if (!in_array($file_ext, $allowed_extensions)) {
+                $errors[] = 'Format file bukti pembayaran tidak valid! Hanya JPG, JPEG, PNG, GIF, dan PDF yang diperbolehkan.';
+            }
+            
+            // Validasi ukuran file (max 5MB)
+            if ($file_size > 5 * 1024 * 1024) {
+                $errors[] = 'Ukuran file bukti pembayaran terlalu besar! Maksimal 5MB.';
+            }
+            
+            // Generate nama file unik
+            if (empty($errors)) {
+                $bukti_pembayaran = 'PAY-' . date('YmdHis') . '-' . uniqid() . '.' . $file_ext;
+                $upload_dir = 'uploads/bukti_pembayaran/';
+                
+                // Buat folder jika belum ada
+                if (!is_dir($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
+                
+                $upload_path = $upload_dir . $bukti_pembayaran;
+                
+                // Pindahkan file
+                if (!move_uploaded_file($file_tmp, $upload_path)) {
+                    $errors[] = 'Gagal mengupload bukti pembayaran.';
+                    $bukti_pembayaran = null;
+                }
+            }
+        } else {
+            $errors[] = 'Bukti pembayaran wajib diupload untuk event berbayar!';
+        }
+    }
+    
     // Jika tidak ada error, proses pendaftaran
     if (empty($errors)) {
         mysqli_begin_transaction($conn);
@@ -114,18 +158,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             if ($tipe_daftar == 'tim') {
                 // Simpan data tim terlebih dahulu
-                $tim_query = "INSERT INTO tim_event (event_id, nama_tim, kode_pendaftaran, jumlah_anggota, created_at) 
-                              VALUES ($event_id, '$nama_tim', '$kode_pendaftaran', $jumlah_anggota, NOW())";
+                $status_pembayaran = $bukti_pembayaran ? 'menunggu_verifikasi' : 'gratis';
+                $tim_query = "INSERT INTO tim_event (event_id, nama_tim, kode_pendaftaran, jumlah_anggota, bukti_pembayaran, status_pembayaran, created_at) 
+                              VALUES ($event_id, '$nama_tim', '$kode_pendaftaran', $jumlah_anggota, '$bukti_pembayaran', '$status_pembayaran', NOW())";
                 
                 if (mysqli_query($conn, $tim_query)) {
                     $tim_id = mysqli_insert_id($conn);
                     
                     // Simpan data ketua tim (anggota pertama)
-                    $nama_ketua = mysqli_real_escape_string($conn, $_POST['nama'][0] ?? '');
-                    $npm_ketua = mysqli_real_escape_string($conn, $_POST['npm'][0] ?? '');
-                    $email_ketua = mysqli_real_escape_string($conn, $_POST['email'][0] ?? '');
-                    $wa_ketua = mysqli_real_escape_string($conn, $_POST['wa'][0] ?? '');
-                    $jurusan_ketua = mysqli_real_escape_string($conn, $_POST['jurusan'][0] ?? '');
+                    $nama_ketua = isset($_POST['nama'][0]) ? mysqli_real_escape_string($conn, $_POST['nama'][0]) : '';
+                    $npm_ketua = isset($_POST['npm'][0]) ? mysqli_real_escape_string($conn, $_POST['npm'][0]) : '';
+                    $email_ketua = isset($_POST['email'][0]) ? mysqli_real_escape_string($conn, $_POST['email'][0]) : '';
+                    $wa_ketua = isset($_POST['wa'][0]) ? mysqli_real_escape_string($conn, $_POST['wa'][0]) : '';
+                    $jurusan_ketua = isset($_POST['jurusan'][0]) ? mysqli_real_escape_string($conn, $_POST['jurusan'][0]) : '';
                     
                     $ketua_query = "INSERT INTO peserta (event_id, tim_id, nama, npm, email, no_wa, jurusan, status_anggota, created_at) 
                                     VALUES ($event_id, $tim_id, '$nama_ketua', '$npm_ketua', '$email_ketua', '$wa_ketua', '$jurusan_ketua', 'ketua', NOW())";
@@ -136,12 +181,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     // Simpan data anggota lainnya
                     for ($i = 1; $i < $jumlah_anggota; $i++) {
-                        if (!empty($_POST['nama'][$i]) && !empty($_POST['npm'][$i])) {
+                        if (isset($_POST['nama'][$i]) && !empty($_POST['nama'][$i]) && isset($_POST['npm'][$i]) && !empty($_POST['npm'][$i])) {
                             $nama = mysqli_real_escape_string($conn, $_POST['nama'][$i]);
                             $npm = mysqli_real_escape_string($conn, $_POST['npm'][$i]);
-                            $email = mysqli_real_escape_string($conn, $_POST['email'][$i] ?? '');
-                            $wa = mysqli_real_escape_string($conn, $_POST['wa'][$i] ?? '');
-                            $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'][$i] ?? '');
+                            $email = isset($_POST['email'][$i]) ? mysqli_real_escape_string($conn, $_POST['email'][$i]) : '';
+                            $wa = isset($_POST['wa'][$i]) ? mysqli_real_escape_string($conn, $_POST['wa'][$i]) : '';
+                            $jurusan = isset($_POST['jurusan'][$i]) ? mysqli_real_escape_string($conn, $_POST['jurusan'][$i]) : '';
                             
                             $anggota_query = "INSERT INTO peserta (event_id, tim_id, nama, npm, email, no_wa, jurusan, status_anggota, created_at) 
                                               VALUES ($event_id, $tim_id, '$nama', '$npm', '$email', '$wa', '$jurusan', 'anggota', NOW())";
@@ -157,16 +202,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 
             } else {
                 // Pendaftaran individu
-                $nama = mysqli_real_escape_string($conn, $_POST['nama'][0] ?? '');
-                $npm = mysqli_real_escape_string($conn, $_POST['npm'][0] ?? '');
-                $email = mysqli_real_escape_string($conn, $_POST['email'][0] ?? '');
-                $wa = mysqli_real_escape_string($conn, $_POST['wa'][0] ?? '');
-                $jurusan = mysqli_real_escape_string($conn, $_POST['jurusan'][0] ?? '');
+                $nama = isset($_POST['nama'][0]) ? mysqli_real_escape_string($conn, $_POST['nama'][0]) : '';
+                $npm = isset($_POST['npm'][0]) ? mysqli_real_escape_string($conn, $_POST['npm'][0]) : '';
+                $email = isset($_POST['email'][0]) ? mysqli_real_escape_string($conn, $_POST['email'][0]) : '';
+                $wa = isset($_POST['wa'][0]) ? mysqli_real_escape_string($conn, $_POST['wa'][0]) : '';
+                $jurusan = isset($_POST['jurusan'][0]) ? mysqli_real_escape_string($conn, $_POST['jurusan'][0]) : '';
                 
                 $kode_pendaftaran = 'IND-' . strtoupper(substr($event['slug'], 0, 3)) . '-' . date('Ymd') . '-' . rand(1000, 9999);
                 
-                $individu_query = "INSERT INTO peserta (event_id, nama, npm, email, no_wa, jurusan, kode_pendaftaran, status_anggota, created_at) 
-                                   VALUES ($event_id, '$nama', '$npm', '$email', '$wa', '$jurusan', '$kode_pendaftaran', 'individu', NOW())";
+                $status_pembayaran = $bukti_pembayaran ? 'menunggu_verifikasi' : 'gratis';
+                $individu_query = "INSERT INTO peserta (event_id, nama, npm, email, no_wa, jurusan, kode_pendaftaran, bukti_pembayaran, status_pembayaran, status_anggota, created_at) 
+                                   VALUES ($event_id, '$nama', '$npm', '$email', '$wa', '$jurusan', '$kode_pendaftaran', '$bukti_pembayaran', '$status_pembayaran', 'individu', NOW())";
                 
                 if (!mysqli_query($conn, $individu_query)) {
                     throw new Exception('Gagal menyimpan data individu: ' . mysqli_error($conn));
@@ -183,6 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Simpan kode pendaftaran di session untuk halaman sukses
             $_SESSION['kode_pendaftaran'] = $kode_pendaftaran;
             $_SESSION['event_id'] = $event_id;
+            $_SESSION['bukti_pembayaran'] = $bukti_pembayaran;
             
             // Redirect ke halaman sukses
             header("Location: pendaftaran_sukses.php?code=" . $kode_pendaftaran);
@@ -191,6 +238,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         } catch (Exception $e) {
             mysqli_rollback($conn);
             $errors[] = $e->getMessage();
+            
+            // Hapus file yang sudah diupload jika ada error
+            if ($bukti_pembayaran && isset($upload_dir) && file_exists($upload_dir . $bukti_pembayaran)) {
+                unlink($upload_dir . $bukti_pembayaran);
+            }
         }
     }
 }
@@ -481,6 +533,115 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 5px;
             flex-grow: 1;
         }
+        
+        /* BUKTI PEMBAYARAN STYLE */
+        .upload-area {
+            border: 3px dashed #dee2e6;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #e8f4ff;
+        }
+        
+        .upload-area.dragover {
+            border-color: var(--success);
+            background: #e8fff0;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+        
+        .preview-container {
+            position: relative;
+            margin-top: 20px;
+        }
+        
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .btn-remove-file {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .info-rekening {
+            background: linear-gradient(135deg, #e6f7ff 0%, #b3e0ff 100%);
+            border-left: 4px solid #1890ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .rekening-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .rekening-item:last-child {
+            border-bottom: none;
+        }
+        
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .copy-btn:hover {
+            background: var(--secondary);
+        }
+        
+        .payment-instruction {
+            background: #fff8e1;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .file-info {
+            background: #f1f8e9;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
@@ -557,7 +718,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <?php endif; ?>
                 </div>
                 
-                <?php if ($biaya > 0): ?>
+                <?php if ($berbayar): ?>
                 <div class="col-md-4">
                     <div class="fee-box">
                         <h5><i class="fas fa-money-bill-wave me-2"></i>Biaya Pendaftaran</h5>
@@ -585,7 +746,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <?php else: ?>
             <!-- FORM CONTAINER -->
             <div class="form-container">
-                <form method="POST" id="pendaftaranForm">
+                <form method="POST" id="pendaftaranForm" enctype="multipart/form-data">
                     
                     <!-- PILIH TIPE PENDAFTARAN -->
                     <?php if ($tipe == 'individu_tim'): ?>
@@ -595,7 +756,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </h4>
                         
                         <div class="tipe-selection">
-                            <div class="tipe-card <?php echo ($_POST['tipe_daftar'] ?? 'individu') == 'individu' ? 'active' : ''; ?>" 
+                            <div class="tipe-card <?php echo (isset($_POST['tipe_daftar']) && $_POST['tipe_daftar'] == 'individu') ? 'active' : ''; ?>" 
                                  data-tipe="individu" onclick="selectTipe('individu')">
                                 <div class="tipe-icon">
                                     <i class="fas fa-user"></i>
@@ -656,7 +817,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="mb-3">
                                     <label class="form-label">Nama Tim <span class="text-danger">*</span></label>
                                     <input type="text" name="nama_tim" class="form-control" 
-                                           value="<?php echo $_POST['nama_tim'] ?? ''; ?>" 
+                                           value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>" 
                                            placeholder="Contoh: Tim Jaya Makmur" required>
                                 </div>
                             </div>
@@ -717,7 +878,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">NPM <span class="text-danger">*</span></label>
+                                            <label class="form-label">NIM<span class="text-danger">*</span></label>
                                             <input type="text" name="npm[]" class="form-control" 
                                                    value="<?php echo $_POST['npm'][$i] ?? ''; ?>" required>
                                         </div>
@@ -767,6 +928,95 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <?php endif; ?>
                     </div>
                     
+                    <!-- BUKTI PEMBAYARAN (Hanya untuk event berbayar) -->
+                    <?php if ($berbayar): ?>
+                    <div class="form-section">
+                        <h4 class="section-title">
+                            <i class="fas fa-file-invoice-dollar"></i> Bukti Pembayaran
+                        </h4>
+                        
+                        <!-- INFO REKENING -->
+                        <div class="info-rekening">
+                            <h5><i class="fas fa-university me-2"></i>Transfer ke Rekening Berikut:</h5>
+                            
+                            <div class="rekening-item">
+                                <div>
+                                    <strong>Bank Mandiri</strong>
+                                    <div class="text-muted">Kantor Cabang Utama</div>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="rekening-number">1234-5678-9012-3456</span>
+                                        <button type="button" class="copy-btn" data-number="1234567890123456">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-muted">a.n. Panitia Event Kampus</div>
+                                </div>
+                            </div>
+                            
+                            <div class="rekening-item">
+                                <div>
+                                    <strong>Bank BCA</strong>
+                                    <div class="text-muted">Kantor Cabang Utama</div>
+                                </div>
+                                <div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="rekening-number">8211049634</span>
+                                        <button type="button" class="copy-btn" data-number="8211049634">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                    <div class="text-muted">Reyvandito Bassam C</div>
+                                </div>
+                            </div>
+                            
+                            <div class="payment-instruction">
+                                <h6><i class="fas fa-lightbulb me-2"></i>Petunjuk Pembayaran:</h6>
+                                <ol class="mb-0">
+                                    <li>Transfer sesuai nominal: <strong>Rp <?php echo number_format($biaya, 0, ',', '.'); ?></strong></li>
+                                    <li>Tambah angka unik: <strong><?php echo rand(1, 999); ?></strong> untuk memudahkan verifikasi</li>
+                                    <li>Upload bukti transfer dengan format JPG, PNG, atau PDF (maks. 5MB)</li>
+                                    <li>Pastikan bukti transfer terbaca dengan jelas</li>
+                                </ol>
+                            </div>
+                        </div>
+                        
+                        <!-- UPLOAD AREA -->
+                        <div class="upload-area" id="uploadArea">
+                            <div class="upload-icon">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
+                            <h5>Upload Bukti Pembayaran</h5>
+                            <p class="text-muted">Drag & drop file atau klik untuk memilih</p>
+                            <p class="text-muted mb-3">Format: JPG, PNG, PDF | Maks: 5MB</p>
+                            
+                            <input type="file" name="bukti_pembayaran" id="buktiPembayaran" 
+                                   accept=".jpg,.jpeg,.png,.gif,.pdf" hidden required>
+                            
+                            <button type="button" class="btn btn-primary" onclick="document.getElementById('buktiPembayaran').click()">
+                                <i class="fas fa-folder-open me-2"></i>Pilih File
+                            </button>
+                        </div>
+                        
+                        <!-- PREVIEW -->
+                        <div class="preview-container" id="previewContainer" style="display: none;">
+                            <button type="button" class="btn-remove-file" id="removeFile">
+                                <i class="fas fa-times"></i>
+                            </button>
+                            <img src="" alt="Preview" class="preview-image" id="previewImage">
+                            <div id="fileInfo" class="file-info mt-2"></div>
+                        </div>
+                        
+                        <!-- FILE INFO -->
+                        <div class="alert alert-info mt-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Penting:</strong> Pendaftaran Anda akan diproses setelah bukti pembayaran diverifikasi oleh panitia. 
+                            Proses verifikasi maksimal 1x24 jam.
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                    
                     <!-- KONFIRMASI -->
                     <div class="form-section">
                         <h4 class="section-title">
@@ -810,6 +1060,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         const minAnggota = <?php echo $min_anggota; ?>;
         const maxAnggota = <?php echo $max_anggota; ?>;
         const tipeEvent = "<?php echo $tipe; ?>";
+        const berbayar = <?php echo $berbayar ? 'true' : 'false'; ?>;
         
         // VARIABLES
         let currentAnggotaCount = <?php echo $current_members ?? 1; ?>;
@@ -941,6 +1192,129 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         });
         
+        // UPLOAD BUKTI PEMBAYARAN
+        const uploadArea = document.getElementById('uploadArea');
+        const buktiPembayaran = document.getElementById('buktiPembayaran');
+        const previewContainer = document.getElementById('previewContainer');
+        const previewImage = document.getElementById('previewImage');
+        const fileInfo = document.getElementById('fileInfo');
+        const removeFile = document.getElementById('removeFile');
+        
+        if (uploadArea) {
+            // Drag and drop functionality
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+            
+            // Click to select
+            uploadArea.addEventListener('click', () => {
+                buktiPembayaran.click();
+            });
+            
+            // File input change
+            buktiPembayaran.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+            
+            // Remove file
+            removeFile?.addEventListener('click', () => {
+                buktiPembayaran.value = '';
+                previewContainer.style.display = 'none';
+                uploadArea.style.display = 'flex';
+            });
+        }
+        
+        function handleFile(file) {
+            // Validasi file
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            
+            if (!allowedTypes.includes(file.type)) {
+                alert('Format file tidak didukung! Hanya JPG, PNG, GIF, dan PDF yang diperbolehkan.');
+                return;
+            }
+            
+            if (file.size > maxSize) {
+                alert('Ukuran file terlalu besar! Maksimal 5MB.');
+                return;
+            }
+            
+            // Show preview for images
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    uploadArea.style.display = 'none';
+                    
+                    // Update file info
+                    fileInfo.innerHTML = `
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>${file.name}</strong><br>
+                                <small>${(file.size / 1024).toFixed(2)} KB • ${file.type}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success">Valid</span>
+                            </div>
+                        </div>
+                    `;
+                };
+                reader.readAsDataURL(file);
+            } else if (file.type === 'application/pdf') {
+                // For PDF files
+                previewImage.src = 'https://cdn-icons-png.flaticon.com/512/337/337946.png';
+                previewContainer.style.display = 'block';
+                uploadArea.style.display = 'none';
+                
+                fileInfo.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <strong>${file.name}</strong><br>
+                            <small>${(file.size / 1024).toFixed(2)} KB • PDF Document</small>
+                        </div>
+                        <div>
+                            <span class="badge bg-success">Valid</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // COPY REKENING NUMBER
+        document.querySelectorAll('.copy-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const number = this.getAttribute('data-number');
+                navigator.clipboard.writeText(number).then(() => {
+                    const originalText = this.innerHTML;
+                    this.innerHTML = '<i class="fas fa-check"></i>';
+                    this.style.background = '#28a745';
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.style.background = '';
+                    }, 2000);
+                });
+            });
+        });
+        
         // FORM VALIDATION
         document.getElementById('pendaftaranForm')?.addEventListener('submit', function(e) {
             // Validasi checkbox
@@ -1000,6 +1374,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 return false;
             }
             
+            // Validasi bukti pembayaran untuk event berbayar
+            if (berbayar) {
+                const buktiFile = document.getElementById('buktiPembayaran');
+                if (buktiFile && !buktiFile.files[0]) {
+                    e.preventDefault();
+                    alert('Harap upload bukti pembayaran terlebih dahulu!');
+                    uploadArea.style.borderColor = 'var(--danger)';
+                    uploadArea.scrollIntoView({ behavior: 'smooth' });
+                    return false;
+                }
+            }
+            
             // Confirmation
             const tipeDaftar = document.querySelector('input[name="tipe_daftar"]:checked')?.value || tipeEvent;
             const message = tipeDaftar === 'tim' 
@@ -1033,7 +1419,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // INITIALIZE
         $(document).ready(function() {
             // Auto fill jika ada session sebelumnya
-            const previousData = <?php echo json_encode($_POST ?? []); ?>;
+            const previousData = <?php echo json_encode(isset($_POST) ? $_POST : []); ?>;
             
             if (Object.keys(previousData).length > 0) {
                 // Scroll to form
@@ -1051,4 +1437,3 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </script>
 </body>
 </html>
-<?php mysqli_close($conn); ?>

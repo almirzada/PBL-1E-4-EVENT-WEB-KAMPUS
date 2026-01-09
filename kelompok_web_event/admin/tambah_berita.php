@@ -199,27 +199,55 @@ $kategori_berita = [
 </head>
 <body>
     <div class="admin-wrapper">
-        <!-- SIDEBAR -->
+       <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-header text-center">
-                <h4><i class="fas fa-newspaper"></i> <span class="menu-text">Berita Kampus</span></h4>
+                <h4><i class="fas fa-calendar-alt"></i> <span class="menu-text">PortalKampus</span></h4>
                 <small class="menu-text">Admin Panel</small>
             </div>
             
             <div class="sidebar-menu">
                 <nav class="nav flex-column">
-                    <a href="dashboard.php" class="nav-link">
+                    <a href="dashboard.php" class="nav-link active">
                         <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
-                    <a href="daftar_berita.php" class="nav-link">
-                        <i class="fas fa-newspaper"></i> <span class="menu-text">Daftar Berita</span>
-                    </a>
-                    <a href="tambah_berita.php" class="nav-link active">
-                        <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Berita</span>
-                    </a>
-                    <a href="form.php" class="nav-link">
-                        <i class="fas fa-calendar-plus"></i> <span class="menu-text">Event</span>
-                    </a>
+                    
+                    <!-- EVENT MENU -->
+                    <div class="menu-section mt-2">
+                        <small class="px-3 d-block text-uppercase opacity-75">Event</small>
+                        <a href="form.php" class="nav-link">
+                            <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Event</span>
+                        </a>
+                        <a href="daftar_event.php" class="nav-link">
+                            <i class="fas fa-list"></i> <span class="menu-text">Semua Event</span>
+                        </a>
+                    </div>
+                    
+                    <!-- BERITA MENU -->
+                    <div class="menu-section mt-2">
+                        <small class="px-3 d-block text-uppercase opacity-75">Berita</small>
+                        <a href="daftar_berita.php" class="nav-link">
+                            <i class="fas fa-newspaper"></i> <span class="menu-text">Daftar Berita</span>
+                        </a>
+                        <a href="tambah_berita.php" class="nav-link">
+                            <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Berita</span>
+                        </a>
+                    </div>
+                    
+                    <!-- LAINNYA -->
+                    <div class="menu-section mt-2">
+                        <small class="px-3 d-block text-uppercase opacity-75">Lainnya</small>
+                        <a href="pengaturan.php" class="nav-link">
+                            <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
+                        </a>
+                        <a href="admin_peserta.php" class="nav-link">
+                            <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
+                        </a>
+                        <a href="pengaturan.php" class="nav-link">
+                            <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>
+                        </a>
+                    </div>
+                    
                     <div class="mt-4 pt-3 border-top border-secondary">
                         <a href="../index.php" class="nav-link" target="_blank">
                             <i class="fas fa-external-link-alt"></i> <span class="menu-text">Lihat Website</span>
