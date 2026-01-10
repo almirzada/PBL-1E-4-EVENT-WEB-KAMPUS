@@ -25,7 +25,8 @@ $query = "SELECT
             t.nama_tim,
             t.kode_pendaftaran as kode_tim,
             t.jumlah_anggota,
-            t.bukti_pembayaran as bukti_tim
+            t.bukti_pembayaran as bukti_tim,
+            t.id as tim_id
           FROM peserta p
           LEFT JOIN events e ON p.event_id = e.id
           LEFT JOIN tim_event t ON p.tim_id = t.id
@@ -54,6 +55,24 @@ switch($peserta['status_anggota']) {
     case 'ketua': $anggotaClass = 'primary'; break;
     case 'anggota': $anggotaClass = 'secondary'; break;
     default: $anggotaClass = 'info';
+}
+
+// AMBIL DATA ANGGOTA TIM JIKA PESERTA ADALAH KETUA TIM
+$anggota_tim = [];
+if ($peserta['status_anggota'] == 'ketua' && !empty($peserta['tim_id'])) {
+    $tim_id = $peserta['tim_id'];
+    $query_anggota = "SELECT 
+                        id, nama, npm, email, no_wa, jurusan, 
+                        status_pembayaran, created_at 
+                      FROM peserta 
+                      WHERE tim_id = $tim_id 
+                        AND status_anggota = 'anggota' 
+                      ORDER BY created_at ASC";
+    
+    $result_anggota = mysqli_query($conn, $query_anggota);
+    while ($row = mysqli_fetch_assoc($result_anggota)) {
+        $anggota_tim[] = $row;
+    }
 }
 ?>
 
@@ -176,6 +195,75 @@ switch($peserta['status_anggota']) {
                 </div>
             </div>
         </div>
+        
+        <!-- TAMBAHAN: DAFTAR ANGGOTA TIM (HANYA TAMPIL UNTUK KETUA) -->
+        <?php if ($peserta['status_anggota'] == 'ketua' && count($anggota_tim) > 0): ?>
+        <div class="card mb-3">
+            <div class="card-body">
+                <h6 class="card-title d-flex justify-content-between align-items-center">
+                    <span><i class="fas fa-user-friends me-2"></i> Anggota Tim</span>
+                    <span class="badge bg-primary"><?php echo count($anggota_tim); ?> Anggota</span>
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Nama</th>
+                                <th>NPM</th>
+                                <th>Email</th>
+                                <th>WhatsApp</th>
+                                <th>Status</th>
+                                <th>Tanggal Daftar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($anggota_tim as $index => $anggota): 
+                                $anggotaStatusClass = '';
+                                switch($anggota['status_pembayaran']) {
+                                    case 'terverifikasi': $anggotaStatusClass = 'success'; break;
+                                    case 'menunggu_verifikasi': $anggotaStatusClass = 'warning'; break;
+                                    case 'ditolak': $anggotaStatusClass = 'danger'; break;
+                                    default: $anggotaStatusClass = 'info';
+                                }
+                            ?>
+                            <tr>
+                                <td><?php echo $index + 1; ?></td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="flex-shrink-0">
+                                            <div class="avatar-xs bg-light rounded">
+                                                <div class="avatar-title bg-soft-secondary text-secondary rounded">
+                                                    <?php echo strtoupper(substr($anggota['nama'], 0, 1)); ?>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex-grow-1 ms-2">
+                                            <?php echo htmlspecialchars($anggota['nama']); ?>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><?php echo htmlspecialchars($anggota['npm']); ?></td>
+                                <td><?php echo htmlspecialchars($anggota['email']); ?></td>
+                                <td><?php echo htmlspecialchars($anggota['no_wa']); ?></td>
+                                <td>
+                                    <span class="badge bg-<?php echo $anggotaStatusClass; ?>">
+                                        <?php echo ucfirst(str_replace('_', ' ', $anggota['status_pembayaran'])); ?>
+                                    </span>
+                                </td>
+                                <td><?php echo date('d/m/y H:i', strtotime($anggota['created_at'])); ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-muted small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Total <?php echo count($anggota_tim); ?> anggota dalam tim <?php echo htmlspecialchars($peserta['nama_tim']); ?>
+                </div>
+            </div>
+        </div>
+        <?php endif; ?>
         
         <div class="card">
             <div class="card-body">

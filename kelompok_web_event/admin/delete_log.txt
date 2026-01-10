@@ -1,0 +1,16 @@
+2026-01-10 13:36:58 - DELETE REQUEST
+Array
+(
+    [id] => 3
+)
+
+
+2026-01-10 13:36:58 - SUCCESS: Deleted peserta ID 3 (pais nur zzakky)
+2026-01-10 13:38:03 - DELETE REQUEST
+Array
+(
+    [id] => 7
+)
+
+
+2026-01-10 13:38:03 - SUCCESS: Deleted peserta ID 7 (reyvandioto)

@@ -941,17 +941,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             
                             <div class="rekening-item">
                                 <div>
-                                    <strong>Bank Mandiri</strong>
+                                    <strong>Bank Maybank</strong>
                                     <div class="text-muted">Kantor Cabang Utama</div>
                                 </div>
                                 <div>
                                     <div class="d-flex align-items-center gap-2">
-                                        <span class="rekening-number">1234-5678-9012-3456</span>
-                                        <button type="button" class="copy-btn" data-number="1234567890123456">
+                                        <span class="rekening-number">8787933492</span>
+                                        <button type="button" class="copy-btn" data-number="8787933492">
                                             <i class="fas fa-copy"></i>
                                         </button>
                                     </div>
-                                    <div class="text-muted">a.n. Panitia Event Kampus</div>
+                                    <div class="text-muted">Amadeo Duscha R</div>
                                 </div>
                             </div>
                             

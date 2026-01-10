@@ -22,26 +22,32 @@ if (!in_array($status, ['terverifikasi', 'ditolak'])) {
     exit();
 }
 
-// Update status pembayaran
-$query = "UPDATE peserta SET 
-          status_pembayaran = '$status',
-          updated_at = NOW()
-          WHERE id = $peserta_id";
+// Update status pembayaran di peserta
+$query = "UPDATE peserta SET status_pembayaran = '$status' WHERE id = $peserta_id";
 
 if (mysqli_query($conn, $query)) {
     // Update juga untuk tim jika ada
-    $tim_query = "UPDATE tim_event t 
-                  JOIN peserta p ON t.id = p.tim_id 
-                  SET t.status_pembayaran = '$status',
-                      t.updated_at = NOW()
-                  WHERE p.id = $peserta_id";
-    mysqli_query($conn, $tim_query);
+    // Cari dulu tim_id dari peserta
+    $tim_query = "SELECT tim_id FROM peserta WHERE id = $peserta_id";
+    $tim_result = mysqli_query($conn, $tim_query);
+    $tim_data = mysqli_fetch_assoc($tim_result);
     
-    // Log verifikasi
+    if ($tim_data && $tim_data['tim_id']) {
+        $tim_id = $tim_data['tim_id'];
+        $update_tim = "UPDATE tim_event SET status_pembayaran = '$status' WHERE id = $tim_id";
+        mysqli_query($conn, $update_tim);
+    }
+    
+    // Log verifikasi (jika tabel log_pembayaran ada)
     $admin_id = $_SESSION['admin_event_id'];
-    $log_query = "INSERT INTO log_pembayaran (peserta_id, admin_id, status_sesudah, catatan) 
-                  VALUES ($peserta_id, $admin_id, '$status', '$note')";
-    mysqli_query($conn, $log_query);
+    
+    // Cek apakah tabel log_pembayaran ada
+    $check_table = mysqli_query($conn, "SHOW TABLES LIKE 'log_pembayaran'");
+    if (mysqli_num_rows($check_table) > 0) {
+        $log_query = "INSERT INTO log_pembayaran (peserta_id, admin_id, status_sesudah, catatan) 
+                      VALUES ($peserta_id, $admin_id, '$status', '$note')";
+        mysqli_query($conn, $log_query);
+    }
     
     echo json_encode(['success' => true, 'message' => 'Berhasil memverifikasi']);
 } else {
