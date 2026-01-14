@@ -51,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $deskripsi_singkat = mysqli_real_escape_string($conn, $_POST['deskripsi_singkat'] ?? '');
     $kategori_id = intval($_POST['kategori_id'] ?? 0);
     $tanggal = $_POST['tanggal'] ?? '';
+    $batas_pendaftaran = $_POST['batas_pendaftaran'] ?? ''; // TAMBAH INI
     $waktu = $_POST['waktu'] ?? '';
     $lokasi = mysqli_real_escape_string($conn, $_POST['lokasi'] ?? '');
     $alamat_lengkap = mysqli_real_escape_string($conn, $_POST['alamat_lengkap'] ?? '');
@@ -77,6 +78,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         if ($max_anggota > 50) {
             $errors[] = 'Maksimal anggota tidak boleh lebih dari 50';
+        }
+    }
+    
+    // Validasi batas pendaftaran (TAMBAH INI)
+    if (!empty($batas_pendaftaran) && !empty($tanggal)) {
+        if (strtotime($batas_pendaftaran) > strtotime($tanggal)) {
+            $errors[] = 'Batas pendaftaran tidak boleh setelah tanggal event';
         }
     }
     
@@ -119,32 +127,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         }
         
+        // Set default values untuk field yang mungkin missing
+        $total_pendaftar = 0;
+        $views = 0;
+        
+        
         if ($mode == 'tambah') {
+            // INSERT QUERY - SEMUA FIELD DIMASUKKAN
             $sql = "INSERT INTO events (
                 judul, slug, deskripsi, deskripsi_singkat, kategori_id, 
-                tanggal, waktu, lokasi, alamat_lengkap, poster, 
+                tanggal, batas_pendaftaran, waktu, lokasi, alamat_lengkap, poster, 
                 kuota_peserta, biaya_pendaftaran, link_pendaftaran, 
                 contact_person, contact_wa, status, featured, created_by,
-                tipe_pendaftaran, min_anggota, max_anggota
+                tipe_pendaftaran, min_anggota, max_anggota,
+                total_pendaftar, views,
+                created_at, updated_at
             ) VALUES (
                 '$judul', '$slug', '$deskripsi', '$deskripsi_singkat', $kategori_id,
-                '$tanggal', " . ($waktu ? "'$waktu'" : "NULL") . ", '$lokasi', '$alamat_lengkap', " . ($poster ? "'$poster'" : "NULL") . ",
+                '$tanggal', " . ($batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ", 
+                " . ($waktu ? "'$waktu'" : "NULL") . ", '$lokasi', '$alamat_lengkap', " . ($poster ? "'$poster'" : "NULL") . ",
                 $kuota_peserta, $biaya_pendaftaran, " . ($link_pendaftaran ? "'$link_pendaftaran'" : "NULL") . ",
                 " . ($contact_person ? "'$contact_person'" : "NULL") . ", " . ($contact_wa ? "'$contact_wa'" : "NULL") . ",
                 '$status', $featured, $admin_id,
-                '$tipe_pendaftaran', $min_anggota, $max_anggota
+                '$tipe_pendaftaran', $min_anggota, $max_anggota,
+                $total_pendaftar, $views,
+                NOW(), NOW()
             )";
             
             if (mysqli_query($conn, $sql)) {
-                $_SESSION['alert_message'] = 'Event berhasil ditambahkan!';
+                $event_id = mysqli_insert_id($conn);
+                $_SESSION['alert_message'] = 'Event berhasil ditambahkan! ID Event: ' . $event_id;
                 $_SESSION['alert_type'] = 'success';
                 header('Location: dashboard.php');
                 exit();
             } else {
                 $errors[] = 'Gagal menyimpan event: ' . mysqli_error($conn);
+                // Debug info
+                $errors[] = 'Query: ' . htmlspecialchars($sql);
             }
             
         } else {
+            // UPDATE QUERY
             $sql = "UPDATE events SET
                 judul = '$judul',
                 slug = '$slug',
@@ -152,6 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 deskripsi_singkat = '$deskripsi_singkat',
                 kategori_id = $kategori_id,
                 tanggal = '$tanggal',
+                batas_pendaftaran = " . ($batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ",
                 waktu = " . ($waktu ? "'$waktu'" : "NULL") . ",
                 lokasi = '$lokasi',
                 alamat_lengkap = '$alamat_lengkap',
@@ -170,12 +194,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 WHERE id = $event_id";
             
             if (mysqli_query($conn, $sql)) {
-                $_SESSION['alert_message'] = 'Event berhasil diperbarui!';
+                $_SESSION['alert_message'] = 'Event berhasil diperbarui! ID Event: ' . $event_id;
                 $_SESSION['alert_type'] = 'success';
                 header('Location: dashboard.php');
                 exit();
             } else {
                 $errors[] = 'Gagal mengupdate event: ' . mysqli_error($conn);
+                // Debug info
+                $errors[] = 'Query: ' . htmlspecialchars($sql);
             }
         }
     }
@@ -522,6 +548,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
         
+        /* BATAS PENDAFTARAN STATUS */
+        .status-pendaftaran-box {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 60px;
+        }
+        
+        .status-open {
+            color: #198754;
+            font-weight: 600;
+        }
+        
+        .status-closing {
+            color: #fd7e14;
+            font-weight: 600;
+        }
+        
+        .status-closed {
+            color: #dc3545;
+            font-weight: 600;
+        }
+        
         /* RESPONSIVE */
         @media (max-width: 992px) {
             .sidebar {
@@ -733,19 +783,71 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         
                         <div class="col-md-3">
                             <div class="mb-4">
-                                <label class="form-label required">Tanggal</label>
+                                <label class="form-label required">Tanggal Event</label>
                                 <input type="date" name="tanggal" class="form-control" 
-                                       value="<?php echo $event['tanggal'] ?? date('Y-m-d'); ?>" required>
+                                       value="<?php echo $event['tanggal'] ?? date('Y-m-d'); ?>" required id="tanggalEvent">
                                 <div class="form-text">Tanggal pelaksanaan event</div>
                             </div>
                         </div>
                         
                         <div class="col-md-3">
                             <div class="mb-4">
+                                <label class="form-label">Batas Pendaftaran</label>
+                                <input type="date" name="batas_pendaftaran" class="form-control" 
+                                       value="<?php echo $event['batas_pendaftaran'] ?? ''; ?>" 
+                                       id="batasPendaftaran">
+                                <div class="form-text">Kosongkan = sampai hari H</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="mb-4">
                                 <label class="form-label">Waktu</label>
                                 <input type="time" name="waktu" class="form-control" 
                                        value="<?php echo $event['waktu'] ?? ''; ?>">
                                 <div class="form-text">Waktu pelaksanaan (opsional)</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-4">
+                                <label class="form-label">Status Pendaftaran</label>
+                                <div class="status-pendaftaran-box" id="statusPendaftaran">
+                                    <span class="text-muted">Auto-deteksi</span>
+                                </div>
+                                <div class="form-text" id="hitungMundur">-</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-4">
+                                <label class="form-label">Quick Set</label>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(7)">
+                                        1 Minggu
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(3)">
+                                        3 Hari
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBatasPendaftaran()">
+                                        Hapus
+                                    </button>
+                                </div>
+                                <div class="form-text">Set otomatis sebelum event</div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="mb-4">
+                                <label class="form-label">Hari Sebelum Event</label>
+                                <input type="number" class="form-control" id="hariSebelumEvent" min="1" max="365" value="7">
+                                <div class="form-text">
+                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="applyHariSebelum()">
+                                        Terapkan
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1125,6 +1227,97 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         };
 
+        // FUNGSI UNTUK BATAS PENDAFTARAN
+        function updateStatusPendaftaran() {
+            const tanggalEvent = document.getElementById('tanggalEvent').value;
+            const batasInput = document.getElementById('batasPendaftaran');
+            const statusElement = document.getElementById('statusPendaftaran');
+            const hitungMundur = document.getElementById('hitungMundur');
+            
+            if (!tanggalEvent) {
+                statusElement.innerHTML = '<span class="text-muted">Isi tanggal event dulu</span>';
+                hitungMundur.textContent = '-';
+                return;
+            }
+            
+            if (!batasInput.value) {
+                // Jika tidak diisi, default ke tanggal event
+                const eventDate = new Date(tanggalEvent);
+                const today = new Date();
+                
+                if (eventDate < today) {
+                    statusElement.innerHTML = '<span class="status-closed">⛔ Event Sudah Lewat</span>';
+                    hitungMundur.textContent = 'Event sudah berlalu';
+                } else {
+                    statusElement.innerHTML = '<span class="status-open">✅ Pendaftaran: Sampai Hari H</span>';
+                    const diffTime = eventDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    hitungMundur.textContent = `${diffDays} hari lagi sampai event`;
+                }
+                return;
+            }
+            
+            const batasDate = new Date(batasInput.value);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            batasDate.setHours(0, 0, 0, 0);
+            
+            // Validasi: batas tidak boleh setelah tanggal event
+            const eventDate = new Date(tanggalEvent);
+            if (batasDate > eventDate) {
+                statusElement.innerHTML = '<span class="status-closed">❌ Tidak Valid</span>';
+                hitungMundur.textContent = 'Batas pendaftaran tidak boleh setelah tanggal event';
+                return;
+            }
+            
+            const diffTime = batasDate - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                statusElement.innerHTML = '<span class="status-closed">⛔ Pendaftaran: Ditutup</span>';
+                hitungMundur.textContent = 'Batas pendaftaran sudah lewat ' + Math.abs(diffDays) + ' hari yang lalu';
+            } else if (diffDays === 0) {
+                statusElement.innerHTML = '<span class="status-closing">⚠️ Pendaftaran: Tutup Hari Ini</span>';
+                hitungMundur.textContent = 'Batas pendaftaran hari ini!';
+            } else if (diffDays <= 3) {
+                statusElement.innerHTML = '<span class="status-closing">⚠️ Pendaftaran: Segera Tutup</span>';
+                hitungMundur.textContent = `${diffDays} hari lagi sampai tutup`;
+            } else {
+                statusElement.innerHTML = '<span class="status-open">✅ Pendaftaran: Masih Dibuka</span>';
+                hitungMundur.textContent = `${diffDays} hari lagi sampai tutup`;
+            }
+        }
+        
+        // Set batas pendaftaran otomatis
+        function setBatasPendaftaran(hari) {
+            const tanggalEvent = document.getElementById('tanggalEvent').value;
+            if (!tanggalEvent) {
+                alert('Isi tanggal event terlebih dahulu');
+                return;
+            }
+            
+            const eventDate = new Date(tanggalEvent);
+            eventDate.setDate(eventDate.getDate() - hari);
+            const formattedDate = eventDate.toISOString().split('T')[0];
+            
+            document.getElementById('batasPendaftaran').value = formattedDate;
+            updateStatusPendaftaran();
+        }
+        
+        // Hapus batas pendaftaran
+        function clearBatasPendaftaran() {
+            document.getElementById('batasPendaftaran').value = '';
+            updateStatusPendaftaran();
+        }
+        
+        // Terapkan hari sebelum event
+        function applyHariSebelum() {
+            const hari = parseInt(document.getElementById('hariSebelumEvent').value);
+            if (hari > 0) {
+                setBatasPendaftaran(hari);
+            }
+        }
+        
         // FUNGSI UTAMA
         function updateByKategori() {
             const kategoriSelect = document.getElementById('kategoriSelect');
@@ -1274,6 +1467,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ],
                 placeholder: 'Tulis deskripsi lengkap event di sini...'
             });
+            
+            // Event listeners untuk batas pendaftaran
+            document.getElementById('tanggalEvent').addEventListener('change', updateStatusPendaftaran);
+            document.getElementById('batasPendaftaran').addEventListener('change', updateStatusPendaftaran);
+            
+            // Initialize status pendaftaran
+            setTimeout(updateStatusPendaftaran, 300);
             
             // Initialize kategori jika edit mode
             <?php if ($mode == 'edit' && isset($event['kategori_id'])): ?>
@@ -1443,6 +1643,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         valid = false;
                         alert('Untuk pendaftaran tim, minimal anggota harus 2 atau lebih!');
                         document.getElementById('minAnggota').focus();
+                        return false;
+                    }
+                }
+                
+                // Validasi batas pendaftaran
+                const tanggalEvent = document.getElementById('tanggalEvent').value;
+                const batasPendaftaran = document.getElementById('batasPendaftaran').value;
+                
+                if (batasPendaftaran && tanggalEvent) {
+                    const eventDate = new Date(tanggalEvent);
+                    const deadlineDate = new Date(batasPendaftaran);
+                    
+                    if (deadlineDate > eventDate) {
+                        valid = false;
+                        alert('❌ Batas pendaftaran tidak boleh setelah tanggal event!');
+                        document.getElementById('batasPendaftaran').focus();
                         return false;
                     }
                 }

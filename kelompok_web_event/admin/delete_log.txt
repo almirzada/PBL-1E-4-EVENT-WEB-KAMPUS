@@ -1,16 +1,26 @@
-2026-01-10 13:36:58 - DELETE REQUEST
-Array
+
+==================================================
+2026-01-14 19:13:30 - DELETE REQUEST STARTED
+POST DATA: Array
 (
-    [id] => 3
+    [id] => 5
 )
 
-
-2026-01-10 13:36:58 - SUCCESS: Deleted peserta ID 3 (pais nur zzakky)
-2026-01-10 13:38:03 - DELETE REQUEST
-Array
+GET DATA: Array
 (
-    [id] => 7
 )
 
+Peserta ID from POST: 5
+Processing delete for ID: 5
+Checking if 'peserta' table exists...
+Check query: SELECT id, nama FROM peserta WHERE id = ? (ID: 5)
+Rows found in peserta table: 1
+Found peserta: ID=5, Nama=paris
+Delete query: DELETE FROM peserta WHERE id = ?
+Delete execution result: SUCCESS
+Affected rows: 1
+Verification - Still exists: NO
+SUCCESS RESPONSE
+2026-01-14 19:13:30 - DELETE REQUEST COMPLETED
+==================================================
 
-2026-01-10 13:38:03 - SUCCESS: Deleted peserta ID 7 (reyvandioto)
