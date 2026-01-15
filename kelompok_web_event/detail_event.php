@@ -29,44 +29,63 @@ if (!$event) {
 // update view counter
 mysqli_query($conn, "UPDATE events SET views = views + 1 WHERE id = $id");
 
-// hitung status pendaftaran berdasarkan batas_pendaftaran
+// Cek apakah event perlu pendaftaran
+$perlu_pendaftaran = $event['perlu_pendaftaran'] ?? 1;
+
+// hitung status pendaftaran berdasarkan batas_pendaftaran (hanya jika perlu pendaftaran)
 $today = date('Y-m-d');
 $event_date = $event['tanggal'];
 $batas_pendaftaran = $event['batas_pendaftaran'] ?? $event_date; // Jika null, gunakan tanggal event
 
+// Default values
 $pendaftaran_dibuka = true;
 $status_pendaftaran = "Buka";
 $status_class = "open"; // Untuk styling CSS
 $badge_color = "success";
 $hitung_mundur = "";
 
-if ($batas_pendaftaran) {
-    if ($today > $batas_pendaftaran) {
-        $pendaftaran_dibuka = false;
-        $status_pendaftaran = "Ditutup";
-        $status_class = "closed";
-        $badge_color = "danger";
-        $days_passed = floor((strtotime($today) - strtotime($batas_pendaftaran)) / (60 * 60 * 24));
-        $hitung_mundur = "Ditutup {$days_passed} hari yang lalu";
-    } else {
-        $days_left = floor((strtotime($batas_pendaftaran) - strtotime($today)) / (60 * 60 * 24));
-        if ($days_left == 0) {
-            $status_pendaftaran = "Tutup Hari Ini";
-            $status_class = "warning";
-            $badge_color = "warning";
-            $hitung_mundur = "Hari terakhir pendaftaran!";
-        } else if ($days_left <= 3) {
-            $status_pendaftaran = "Segera Tutup";
-            $status_class = "warning";
-            $badge_color = "warning";
-            $hitung_mundur = "{$days_left} hari lagi";
+if ($perlu_pendaftaran) {
+    if ($batas_pendaftaran) {
+        if ($today > $batas_pendaftaran) {
+            $pendaftaran_dibuka = false;
+            $status_pendaftaran = "Ditutup";
+            $status_class = "closed";
+            $badge_color = "danger";
+            $days_passed = floor((strtotime($today) - strtotime($batas_pendaftaran)) / (60 * 60 * 24));
+            $hitung_mundur = "Ditutup {$days_passed} hari yang lalu";
         } else {
-            $status_pendaftaran = "Masih Dibuka";
-            $status_class = "open";
-            $badge_color = "success";
-            $hitung_mundur = "{$days_left} hari lagi";
+            $days_left = floor((strtotime($batas_pendaftaran) - strtotime($today)) / (60 * 60 * 24));
+            if ($days_left == 0) {
+                $status_pendaftaran = "Tutup Hari Ini";
+                $status_class = "warning";
+                $badge_color = "warning";
+                $hitung_mundur = "Hari terakhir pendaftaran!";
+            } else if ($days_left <= 3) {
+                $status_pendaftaran = "Segera Tutup";
+                $status_class = "warning";
+                $badge_color = "warning";
+                $hitung_mundur = "{$days_left} hari lagi";
+            } else {
+                $status_pendaftaran = "Masih Dibuka";
+                $status_class = "open";
+                $badge_color = "success";
+                $hitung_mundur = "{$days_left} hari lagi";
+            }
         }
+    } else {
+        // Jika tidak ada batas pendaftaran
+        $status_pendaftaran = "Buka (Sampai Hari H)";
+        $status_class = "open";
+        $badge_color = "success";
+        $hitung_mundur = "Pendaftaran sampai hari pelaksanaan";
     }
+} else {
+    // Event tidak perlu pendaftaran
+    $status_pendaftaran = "Tidak Perlu Daftar";
+    $status_class = "open";
+    $badge_color = "info";
+    $hitung_mundur = "Acara terbuka untuk umum";
+    $pendaftaran_dibuka = false; // Tidak ada tombol daftar
 }
 
 // Cek apakah event masih berjalan
@@ -104,6 +123,7 @@ $related_result = mysqli_query($conn, $related_query);
             --status-open: #28a745;
             --status-warning: #ffc107;
             --status-closed: #dc3545;
+            --status-info: #17a2b8;
         }
 
         body {
@@ -266,6 +286,11 @@ $related_result = mysqli_query($conn, $related_query);
             background: linear-gradient(135deg, rgba(220, 53, 69, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
         }
 
+        .status-info {
+            border-color: #17a2b8 !important;
+            background: linear-gradient(135deg, rgba(23, 162, 184, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%) !important;
+        }
+
         .status-title {
             font-size: 1.3rem;
             font-weight: 700;
@@ -300,6 +325,10 @@ $related_result = mysqli_query($conn, $related_query);
             color: #dc3545 !important;
         }
 
+        .text-status-info {
+            color: #17a2b8 !important;
+        }
+
         /* STATUS BADGE - WARNA SOLID */
         .status-badge {
             display: inline-block;
@@ -325,6 +354,10 @@ $related_result = mysqli_query($conn, $related_query);
 
         .badge-closed {
             background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+        }
+
+        .badge-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #5bc0de 100%);
         }
         /* CATEGORY BADGE - Warna sesuai database */
 .category-badge {
@@ -414,6 +447,10 @@ $related_result = mysqli_query($conn, $related_query);
             border-color: #dc3545;
         }
 
+        .hitung-info {
+            border-color: #17a2b8;
+        }
+
         /* EVENT BODY */
         .event-body {
             background: white;
@@ -442,6 +479,112 @@ $related_result = mysqli_query($conn, $related_query);
             font-size: 1.1rem;
             line-height: 1.8;
             color: #444;
+        }
+
+        /* TAMBAHKAN INI di bagian CSS - Styling untuk konten Summernote */
+        .event-description img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .event-description table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .event-description table, 
+        .event-description th, 
+        .event-description td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        .event-description th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .event-description blockquote {
+            border-left: 4px solid #4361ee;
+            padding-left: 15px;
+            margin: 20px 0;
+            font-style: italic;
+            color: #666;
+        }
+
+        .event-description ul,
+        .event-description ol {
+            padding-left: 20px;
+            margin: 15px 0;
+        }
+
+        .event-description li {
+            margin-bottom: 5px;
+        }
+
+        .event-description h1,
+        .event-description h2,
+        .event-description h3,
+        .event-description h4,
+        .event-description h5,
+        .event-description h6 {
+            color: var(--primary-color);
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        .event-description h1 { font-size: 2rem; }
+        .event-description h2 { font-size: 1.75rem; }
+        .event-description h3 { font-size: 1.5rem; }
+        .event-description h4 { font-size: 1.25rem; }
+        .event-description h5 { font-size: 1.1rem; }
+        .event-description h6 { font-size: 1rem; }
+
+        .event-description a {
+            color: var(--primary-color);
+            text-decoration: none;
+            border-bottom: 1px dotted var(--primary-color);
+        }
+
+        .event-description a:hover {
+            color: var(--primary-dark);
+            border-bottom: 1px solid var(--primary-dark);
+        }
+
+        .event-description .text-center {
+            text-align: center;
+        }
+
+        .event-description .text-right {
+            text-align: right;
+        }
+
+        .event-description .text-justify {
+            text-align: justify;
+        }
+
+        .event-description pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #4361ee;
+            overflow-x: auto;
+        }
+
+        .event-description code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .event-description iframe {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 15px 0;
         }
 
         /* INFO BOX */
@@ -504,6 +647,30 @@ $related_result = mysqli_query($conn, $related_query);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
+        }
+
+        /* TOMBOL TIDAK PERLU DAFTAR */
+        .btn-tidak-perlu-daftar {
+            background: linear-gradient(135deg, #17a2b8 0%, #5bc0de 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-weight: 700;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(23, 162, 184, 0.4);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-tidak-perlu-daftar:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(23, 162, 184, 0.5);
+            color: white;
         }
 
         /* TIM BADGE */
@@ -655,8 +822,8 @@ $related_result = mysqli_query($conn, $related_query);
         <?php echo htmlspecialchars($event['kategori_nama'] ?? 'Event Kampus'); ?>
     </div>
     
-    <!-- Badge Tipe Pendaftaran -->
-    <?php if ($event['tipe_pendaftaran'] == 'tim' || $event['tipe_pendaftaran'] == 'individu_tim'): ?>
+    <!-- Badge Tipe Pendaftaran (hanya tampil jika perlu pendaftaran dan ada tipe pendaftaran) -->
+    <?php if ($perlu_pendaftaran && ($event['tipe_pendaftaran'] == 'tim' || $event['tipe_pendaftaran'] == 'individu_tim')): ?>
     <div class="registration-type-badge <?php echo $event['tipe_pendaftaran'] == 'tim' ? 'type-team' : 'type-individual-team'; ?>">
         <i class="fas fa-users me-2"></i>
         <?php 
@@ -666,6 +833,14 @@ $related_result = mysqli_query($conn, $related_query);
             echo 'Bisa Individu/Tim';
         }
         ?>
+    </div>
+    <?php endif; ?>
+    
+    <!-- Badge Tidak Perlu Pendaftaran -->
+    <?php if (!$perlu_pendaftaran): ?>
+    <div class="registration-type-badge" style="background: linear-gradient(135deg, #17a2b8 0%, #5bc0de 100%);">
+        <i class="fas fa-door-open me-2"></i>
+        Tidak Perlu Daftar
     </div>
     <?php endif; ?>
 </div>
@@ -702,7 +877,7 @@ $related_result = mysqli_query($conn, $related_query);
                 <div class="status-box status-<?php echo $status_class; ?>">
                     <div class="status-title">
                         <i class="fas fa-user-clock"></i>
-                        Status Pendaftaran
+                        <?php echo $perlu_pendaftaran ? 'Status Pendaftaran' : 'Status Kehadiran'; ?>
                     </div>
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -713,11 +888,15 @@ $related_result = mysqli_query($conn, $related_query);
                             <div class="mt-2">
                                 <span class="text-muted">
                                     <i class="far fa-calendar-check me-1"></i>
-                                    <?php if ($batas_pendaftaran && $batas_pendaftaran != $event_date): ?>
-                                        Batas pendaftaran: <?php echo date('d F Y', strtotime($batas_pendaftaran)); ?>
+                                    <?php if ($perlu_pendaftaran): ?>
+                                        <?php if ($batas_pendaftaran && $batas_pendaftaran != $event_date): ?>
+                                            Batas pendaftaran: <?php echo date('d F Y', strtotime($batas_pendaftaran)); ?>
+                                        <?php else: ?>
+                                            <i class="fas fa-infinity me-1"></i>
+                                            Pendaftaran sampai hari H
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        <i class="fas fa-infinity me-1"></i>
-                                        Pendaftaran sampai hari H
+                                        Acara terbuka untuk umum - Datang langsung!
                                     <?php endif; ?>
                                 </span>
                             </div>
@@ -727,7 +906,7 @@ $related_result = mysqli_query($conn, $related_query);
                             <div class="hitung-mundur hitung-<?php echo $status_class; ?>">
                                 <strong><?php echo $hitung_mundur; ?></strong>
                             </div>
-                            <?php if ($event['tipe_pendaftaran'] == 'tim'): ?>
+                            <?php if ($perlu_pendaftaran && $event['tipe_pendaftaran'] == 'tim'): ?>
                             <small class="text-muted mt-2 d-block">
                                 <i class="fas fa-users me-1"></i>
                                 <?php echo $event['min_anggota'] . '-' . $event['max_anggota']; ?> orang/tim
@@ -737,19 +916,29 @@ $related_result = mysqli_query($conn, $related_query);
                     </div>
                 </div>
 
-                <!-- TOMBOL DAFTAR -->
-                <?php if ($event_berjalan && $pendaftaran_dibuka): ?>
-                <a href="daftar.php?id=<?php echo $event['id']; ?>" class="btn-daftar pulse">
-                    <i class="fas fa-user-plus me-2"></i> DAFTAR SEKARANG
-                </a>
-                <?php elseif (!$pendaftaran_dibuka): ?>
-                <button class="btn-daftar" disabled>
-                    <i class="fas fa-lock me-2"></i> PENDAFTARAN DITUTUP
-                </button>
+                <!-- TOMBOL AKSI -->
+                <?php if ($perlu_pendaftaran): ?>
+                    <?php if ($event_berjalan && $pendaftaran_dibuka): ?>
+                    <a href="daftar.php?id=<?php echo $event['id']; ?>" class="btn-daftar pulse">
+                        <i class="fas fa-user-plus me-2"></i> DAFTAR SEKARANG
+                    </a>
+                    <?php elseif (!$pendaftaran_dibuka): ?>
+                    <button class="btn-daftar" disabled>
+                        <i class="fas fa-lock me-2"></i> PENDAFTARAN DITUTUP
+                    </button>
+                    <?php else: ?>
+                    <button class="btn-daftar" disabled>
+                        <i class="fas fa-calendar-times me-2"></i> EVENT SUDAH BERAKHIR
+                    </button>
+                    <?php endif; ?>
                 <?php else: ?>
-                <button class="btn-daftar" disabled>
-                    <i class="fas fa-calendar-times me-2"></i> EVENT SUDAH BERAKHIR
-                </button>
+                    <!-- Event tidak perlu pendaftaran -->
+                    <button class="btn-tidak-perlu-daftar pulse">
+                        <i class="fas fa-door-open me-2"></i> ACARA TERBUKA UMUM
+                    </button>
+                    <div class="mt-3 text-white">
+                        <small><i class="fas fa-info-circle me-2"></i> Acara ini tidak memerlukan pendaftaran. Datang langsung sesuai jadwal!</small>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -778,7 +967,17 @@ $related_result = mysqli_query($conn, $related_query);
 
                     <!-- DESKRIPSI LENGKAP -->
                     <div class="event-description">
-                        <?php echo nl2br(htmlspecialchars($event['deskripsi'])); ?>
+                        <?php 
+                        // Dekode HTML entities tapi filter script berbahaya
+                        $deskripsi = htmlspecialchars_decode($event['deskripsi']);
+                        
+                        // Hilangkan tag script berbahaya
+                        $deskripsi = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $deskripsi);
+                        $deskripsi = preg_replace('/on\w+=\s*"[^"]*"\s*/i', '', $deskripsi);
+                        $deskripsi = preg_replace('/on\w+=\s*\'[^\']*\'\s*/i', '', $deskripsi);
+                        
+                        echo $deskripsi; 
+                        ?>
                     </div>
 
                     <!-- INFO BOX -->
@@ -830,7 +1029,7 @@ $related_result = mysqli_query($conn, $related_query);
                             </div>
                             <?php endif; ?>
                             
-                            <?php if ($event['kuota_peserta'] > 0): ?>
+                            <?php if ($perlu_pendaftaran && $event['kuota_peserta'] > 0): ?>
                             <div class="col-md-6 mb-3">
                                 <div class="d-flex align-items-start gap-2">
                                     <i class="fas fa-users mt-1" style="color: var(--primary-color);"></i>
@@ -848,9 +1047,23 @@ $related_result = mysqli_query($conn, $related_query);
                                     </div>
                                 </div>
                             </div>
+                            <?php elseif (!$perlu_pendaftaran): ?>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="fas fa-users mt-1" style="color: #17a2b8;"></i>
+                                    <div>
+                                        <strong>Kuota Peserta:</strong>
+                                        <p class="mb-0">
+                                            <span class="text-info">Tidak Terbatas</span>
+                                            <br>
+                                            <small class="text-muted">Acara terbuka untuk umum</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                             <?php endif; ?>
                             
-                            <?php if ($event['biaya_pendaftaran'] > 0): ?>
+                            <?php if ($perlu_pendaftaran && $event['biaya_pendaftaran'] > 0): ?>
                             <div class="col-md-6 mb-3">
                                 <div class="d-flex align-items-start gap-2">
                                     <i class="fas fa-money-bill-wave mt-1" style="color: var(--primary-color);"></i>
@@ -860,10 +1073,24 @@ $related_result = mysqli_query($conn, $related_query);
                                     </div>
                                 </div>
                             </div>
+                            <?php elseif (!$perlu_pendaftaran): ?>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="fas fa-money-bill-wave mt-1" style="color: #17a2b8;"></i>
+                                    <div>
+                                        <strong>Biaya Kehadiran:</strong>
+                                        <p class="mb-0">
+                                            <span class="text-info">GRATIS</span>
+                                            <br>
+                                            <small class="text-muted">Tidak ada biaya kehadiran</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
                             <?php endif; ?>
                             
-                            <!-- INFO TIM -->
-                            <?php if ($event['tipe_pendaftaran'] == 'tim' || $event['tipe_pendaftaran'] == 'individu_tim'): ?>
+                            <!-- INFO TIM (hanya jika perlu pendaftaran) -->
+                            <?php if ($perlu_pendaftaran && ($event['tipe_pendaftaran'] == 'tim' || $event['tipe_pendaftaran'] == 'individu_tim')): ?>
                             <div class="col-md-6 mb-3">
                                 <div class="d-flex align-items-start gap-2">
                                     <i class="fas fa-user-friends mt-1" style="color: #6f42c1;"></i>
@@ -893,7 +1120,8 @@ $related_result = mysqli_query($conn, $related_query);
                             </div>
                             <?php endif; ?>
                             
-                            <!-- BATAS PENDAFTARAN DETAIL -->
+                            <!-- BATAS PENDAFTARAN DETAIL (hanya jika perlu pendaftaran) -->
+                            <?php if ($perlu_pendaftaran): ?>
                             <div class="col-md-6 mb-3">
                                 <div class="d-flex align-items-start gap-2">
                                     <i class="fas fa-calendar-times mt-1" style="color: var(--primary-color);"></i>
@@ -919,6 +1147,22 @@ $related_result = mysqli_query($conn, $related_query);
                                     </div>
                                 </div>
                             </div>
+                            <?php else: ?>
+                            <!-- INFO TIDAK PERLU PENDAFTARAN -->
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-start gap-2">
+                                    <i class="fas fa-door-open mt-1" style="color: #17a2b8;"></i>
+                                    <div>
+                                        <strong>Sistem Kehadiran:</strong>
+                                        <p class="mb-0">
+                                            <span class="text-info">Tidak Perlu Pendaftaran</span>
+                                            <br>
+                                            <small class="text-muted">Datang langsung sesuai jadwal yang tertera</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
 
@@ -963,6 +1207,13 @@ $related_result = mysqli_query($conn, $related_query);
                             </span>
                         </div>
                         <?php endif; ?>
+                        <?php if (!$perlu_pendaftaran): ?>
+                        <div class="mt-2">
+                            <span class="badge bg-info">
+                                <i class="fas fa-door-open me-1"></i> Tidak Perlu Daftar
+                            </span>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -976,7 +1227,15 @@ $related_result = mysqli_query($conn, $related_query);
                         <div class="row g-3">
                             <?php while ($related = mysqli_fetch_assoc($related_result)): 
                                 $related_batas = $related['batas_pendaftaran'] ?? $related['tanggal'];
-                                $related_status = (date('Y-m-d') <= $related_batas) ? 'success' : 'danger';
+                                $related_perlu_pendaftaran = $related['perlu_pendaftaran'] ?? 1;
+                                
+                                if ($related_perlu_pendaftaran) {
+                                    $related_status = (date('Y-m-d') <= $related_batas) ? 'success' : 'danger';
+                                    $related_status_text = (date('Y-m-d') <= $related_batas) ? 'Buka' : 'Tutup';
+                                } else {
+                                    $related_status = 'info';
+                                    $related_status_text = 'Terbuka';
+                                }
                             ?>
                             <div class="col-12">
                                 <a href="detail_event.php?id=<?php echo $related['id']; ?>" 
@@ -998,7 +1257,7 @@ $related_result = mysqli_query($conn, $related_query);
                                                     <?php echo date('d/m/Y', strtotime($related['tanggal'])); ?>
                                                 </small>
                                                 <span class="badge bg-<?php echo $related_status; ?>">
-                                                    <?php echo (date('Y-m-d') <= $related_batas) ? 'Buka' : 'Tutup'; ?>
+                                                    <?php echo $related_status_text; ?>
                                                 </span>
                                             </div>
                                         </div>
@@ -1088,17 +1347,18 @@ $related_result = mysqli_query($conn, $related_query);
         
         if (statusBadge && (statusBadge.classList.contains('badge-warning') || 
             statusBadge.textContent.includes('Hari Ini') || 
-            statusBadge.textContent.includes('Segera'))) {
+            statusBadge.textContent.includes('Segera') ||
+            statusBadge.textContent.includes('Info'))) {
             
             // Animasi berkedip untuk status warning
             setInterval(() => {
                 statusBadge.style.opacity = statusBadge.style.opacity === '0.8' ? '1' : '0.8';
             }, 1000);
             
-            // Animasi pulsing untuk button daftar
-            const daftarBtn = document.querySelector('.btn-daftar');
-            if (daftarBtn && !daftarBtn.disabled) {
-                daftarBtn.classList.add('pulse');
+            // Animasi pulsing untuk button
+            const actionBtn = document.querySelector('.btn-daftar, .btn-tidak-perlu-daftar');
+            if (actionBtn && !actionBtn.disabled) {
+                actionBtn.classList.add('pulse');
             }
         }
 

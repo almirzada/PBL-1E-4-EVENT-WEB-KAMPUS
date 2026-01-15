@@ -1176,39 +1176,50 @@ $event_dates_json = json_encode($event_dates);
         </div>
     </section>
 
-    <!-- Slider Galeri -->
-    <section class="py-5 bg-light">
-        <div class="container">
-            <h2 class="section-title">
-                <i class="fas fa-images me-2"></i> Galeri Kampus
-            </h2>
-            <div class="slider-container">
-                <div class="slider-track">
-                    <?php 
-                    // Gabungkan gambar dari database dengan default images
-                    $all_images = array_merge($slider_images, $default_images);
-                    $all_images = array_slice($all_images, 0, 9);
-                    
-                    foreach ($all_images as $index => $image): 
-                        $img_src = (strpos($image, 'http') === 0) ? $image : (!empty($image) ? $image : $default_images[$index % count($default_images)]);
-                    ?>
-                        <div class="slider-item">
-                            <img src="<?php echo htmlspecialchars($img_src); ?>" 
-                                 alt="Galeri Kampus <?php echo $index + 1; ?>">
-                        </div>
-                    <?php endforeach; ?>
-                    
-                    <!-- Duplikat untuk efek loop -->
-                    <?php foreach (array_slice($all_images, 0, 3) as $index => $image): ?>
-                        <div class="slider-item">
-                            <img src="<?php echo htmlspecialchars($image); ?>" 
-                                 alt="Galeri Kampus <?php echo $index + 10; ?>">
-                        </div>
-                    <?php endforeach; ?>
-                </div>
+   <!-- Slider Galeri -->
+<section class="py-5 bg-light">
+    <div class="container">
+        <h2 class="section-title">
+            <i class="fas fa-images me-2"></i> Galeri Kampus
+        </h2>
+        <div class="slider-container">
+            <div class="slider-track">
+                <?php 
+                // Array gambar dari URL eksternal
+                $gallery_images = [
+                    'https://cdn.antaranews.com/cache/1200x800/2023/09/01/IMG_6557.jpeg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2023/04/IMG_2431-scaled.jpg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2022/08/Inagurasi-MABA-2022-768x512.jpg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2022/06/DSC_1753-scaled.jpg',
+                    'https://cdn.antaranews.com/cache/800x533/2025/03/01/IMG_6959.jpeg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2023/02/ARM_6631.jpg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2025/11/Snap4.jpg',
+                    'https://www.polibatam.ac.id/wp-content/uploads/2025/09/2-1.jpg',
+                    'https://images.unsplash.com/photo-1524178234883-043d5c3f3cf4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+                ];
+                
+                // Tampilkan semua gambar
+                foreach ($gallery_images as $index => $image_url): 
+                ?>
+                    <div class="slider-item">
+                        <img src="<?php echo htmlspecialchars($image_url); ?>" 
+                             alt="Galeri Kampus <?php echo $index + 1; ?>"
+                             loading="lazy">
+                    </div>
+                <?php endforeach; ?>
+                
+                <!-- Duplikat untuk efek loop seamless -->
+                <?php foreach (array_slice($gallery_images, 0, 3) as $index => $image_url): ?>
+                    <div class="slider-item">
+                        <img src="<?php echo htmlspecialchars($image_url); ?>" 
+                             alt="Galeri Kampus <?php echo $index + 10; ?>"
+                             loading="lazy">
+                    </div>
+                <?php endforeach; ?>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
     <!-- Footer -->
     <footer class="footer">

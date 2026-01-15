@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $deskripsi_singkat = mysqli_real_escape_string($conn, $_POST['deskripsi_singkat'] ?? '');
     $kategori_id = intval($_POST['kategori_id'] ?? 0);
     $tanggal = $_POST['tanggal'] ?? '';
-    $batas_pendaftaran = $_POST['batas_pendaftaran'] ?? ''; // TAMBAH INI
+    $batas_pendaftaran = $_POST['batas_pendaftaran'] ?? '';
     $waktu = $_POST['waktu'] ?? '';
     $lokasi = mysqli_real_escape_string($conn, $_POST['lokasi'] ?? '');
     $alamat_lengkap = mysqli_real_escape_string($conn, $_POST['alamat_lengkap'] ?? '');
@@ -63,13 +63,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $status = $_POST['status'] ?? 'draft';
     $featured = isset($_POST['featured']) ? 1 : 0;
     
-    // SISTEM TIM UNTUK SEMUA KATEGORI
-    $tipe_pendaftaran = mysqli_real_escape_string($conn, $_POST['tipe_pendaftaran'] ?? 'individu');
-    $min_anggota = intval($_POST['min_anggota'] ?? 1);
-    $max_anggota = intval($_POST['max_anggota'] ?? 1);
+    // TAMBAH: Opsi apakah perlu pendaftaran atau tidak
+    $perlu_pendaftaran = isset($_POST['perlu_pendaftaran']) ? 1 : 0;
     
-    // Validasi khusus untuk tim
-    if ($tipe_pendaftaran == 'tim') {
+    // SISTEM TIM UNTUK SEMUA KATEGORI (hanya aktif jika perlu pendaftaran)
+    $tipe_pendaftaran = $perlu_pendaftaran ? mysqli_real_escape_string($conn, $_POST['tipe_pendaftaran'] ?? 'individu') : 'individu';
+    $min_anggota = $perlu_pendaftaran ? intval($_POST['min_anggota'] ?? 1) : 1;
+    $max_anggota = $perlu_pendaftaran ? intval($_POST['max_anggota'] ?? 1) : 1;
+    
+    // Validasi khusus untuk tim (hanya jika perlu pendaftaran)
+    if ($perlu_pendaftaran && $tipe_pendaftaran == 'tim') {
         if ($min_anggota < 2) {
             $errors[] = 'Minimal anggota untuk tim harus 2 atau lebih';
         }
@@ -81,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
     
-    // Validasi batas pendaftaran (TAMBAH INI)
-    if (!empty($batas_pendaftaran) && !empty($tanggal)) {
+    // Validasi batas pendaftaran (hanya jika perlu pendaftaran)
+    if ($perlu_pendaftaran && !empty($batas_pendaftaran) && !empty($tanggal)) {
         if (strtotime($batas_pendaftaran) > strtotime($tanggal)) {
             $errors[] = 'Batas pendaftaran tidak boleh setelah tanggal event';
         }
@@ -131,7 +134,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $total_pendaftar = 0;
         $views = 0;
         
-        
         if ($mode == 'tambah') {
             // INSERT QUERY - SEMUA FIELD DIMASUKKAN
             $sql = "INSERT INTO events (
@@ -139,17 +141,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 tanggal, batas_pendaftaran, waktu, lokasi, alamat_lengkap, poster, 
                 kuota_peserta, biaya_pendaftaran, link_pendaftaran, 
                 contact_person, contact_wa, status, featured, created_by,
-                tipe_pendaftaran, min_anggota, max_anggota,
+                perlu_pendaftaran, tipe_pendaftaran, min_anggota, max_anggota,
                 total_pendaftar, views,
                 created_at, updated_at
             ) VALUES (
                 '$judul', '$slug', '$deskripsi', '$deskripsi_singkat', $kategori_id,
-                '$tanggal', " . ($batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ", 
+                '$tanggal', " . ($perlu_pendaftaran && $batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ", 
                 " . ($waktu ? "'$waktu'" : "NULL") . ", '$lokasi', '$alamat_lengkap', " . ($poster ? "'$poster'" : "NULL") . ",
                 $kuota_peserta, $biaya_pendaftaran, " . ($link_pendaftaran ? "'$link_pendaftaran'" : "NULL") . ",
                 " . ($contact_person ? "'$contact_person'" : "NULL") . ", " . ($contact_wa ? "'$contact_wa'" : "NULL") . ",
                 '$status', $featured, $admin_id,
-                '$tipe_pendaftaran', $min_anggota, $max_anggota,
+                $perlu_pendaftaran, '$tipe_pendaftaran', $min_anggota, $max_anggota,
                 $total_pendaftar, $views,
                 NOW(), NOW()
             )";
@@ -175,7 +177,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 deskripsi_singkat = '$deskripsi_singkat',
                 kategori_id = $kategori_id,
                 tanggal = '$tanggal',
-                batas_pendaftaran = " . ($batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ",
+                batas_pendaftaran = " . ($perlu_pendaftaran && $batas_pendaftaran ? "'$batas_pendaftaran'" : "NULL") . ",
                 waktu = " . ($waktu ? "'$waktu'" : "NULL") . ",
                 lokasi = '$lokasi',
                 alamat_lengkap = '$alamat_lengkap',
@@ -187,6 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 contact_wa = " . ($contact_wa ? "'$contact_wa'" : "NULL") . ",
                 status = '$status',
                 featured = $featured,
+                perlu_pendaftaran = $perlu_pendaftaran,
                 tipe_pendaftaran = '$tipe_pendaftaran',
                 min_anggota = $min_anggota,
                 max_anggota = $max_anggota,
@@ -441,6 +444,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             animation: fadeIn 0.3s ease-in;
         }
         
+        /* PENDATARAN SETTINGS */
+        .pendaftaran-settings {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f8f9fa;
+            margin-top: 15px;
+        }
+        
+        .pendaftaran-settings.show {
+            display: block;
+        }
+        
+        .pendaftaran-settings.hide {
+            display: none;
+        }
+        
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -572,6 +592,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-weight: 600;
         }
         
+        /* TOGGLE SWITCH */
+        .form-switch .form-check-input {
+            width: 3em;
+            height: 1.5em;
+        }
+        
+        .form-switch .form-check-input:checked {
+            background-color: var(--primary);
+            border-color: var(--primary);
+        }
+        
         /* RESPONSIVE */
         @media (max-width: 992px) {
             .sidebar {
@@ -611,14 +642,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             <div class="sidebar-menu">
                 <nav class="nav flex-column">
-                    <a href="dashboard.php" class="nav-link active">
+                    <a href="dashboard.php" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
                     
                     <!-- EVENT MENU -->
                     <div class="menu-section mt-2">
                         <small class="px-3 d-block text-uppercase opacity-75">Event</small>
-                        <a href="form.php" class="nav-link">
+                        <a href="form.php" class="nav-link active">
                             <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Event</span>
                         </a>
                         <a href="daftar_event.php" class="nav-link">
@@ -639,16 +670,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     <!-- LAINNYA -->
                     <div class="menu-section mt-2">
-                        <small class="px-3 d-block text-uppercase opacity-75">Lainnya</small>
-                        <a href="pengaturan.php" class="nav-link">
-                            <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
-                        </a>
+                        <small class="px-3 d-block text-uppercase opacity-75">Pendaftar</small>
+                        
                         <a href="admin_peserta.php" class="nav-link">
                             <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
                         </a>
-                        <a href="pengaturan.php" class="nav-link">
-                            <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>
-                        </a>
+                       <?php if ($_SESSION['admin_event_level'] == 'superadmin'): ?>
+<!-- MENU SUPERADMIN -->
+<div class="menu-section mt-2">
+    <small class="px-3 d-block text-uppercase opacity-75">Superadmin</small>
+    <a href="admin_management.php" class="nav-link">
+        <i class="fas fa-users-cog"></i> <span class="menu-text">Kelola Admin</span>
+    </a>
+    <a href="admin_approval.php" class="nav-link">
+        <i class="fas fa-user-check"></i> <span class="menu-text">Persetujuan</span>
+    </a>
+</div>
+<?php endif; ?>
                     </div>
                     
                     <div class="mt-4 pt-3 border-top border-secondary">
@@ -792,149 +830,202 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         
                         <div class="col-md-3">
                             <div class="mb-4">
-                                <label class="form-label">Batas Pendaftaran</label>
-                                <input type="date" name="batas_pendaftaran" class="form-control" 
-                                       value="<?php echo $event['batas_pendaftaran'] ?? ''; ?>" 
-                                       id="batasPendaftaran">
-                                <div class="form-text">Kosongkan = sampai hari H</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="mb-4">
                                 <label class="form-label">Waktu</label>
                                 <input type="time" name="waktu" class="form-control" 
                                        value="<?php echo $event['waktu'] ?? ''; ?>">
                                 <div class="form-text">Waktu pelaksanaan (opsional)</div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-3">
-                            <div class="mb-4">
-                                <label class="form-label">Status Pendaftaran</label>
-                                <div class="status-pendaftaran-box" id="statusPendaftaran">
-                                    <span class="text-muted">Auto-deteksi</span>
-                                </div>
-                                <div class="form-text" id="hitungMundur">-</div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="mb-4">
-                                <label class="form-label">Quick Set</label>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(7)">
-                                        1 Minggu
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(3)">
-                                        3 Hari
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBatasPendaftaran()">
-                                        Hapus
-                                    </button>
-                                </div>
-                                <div class="form-text">Set otomatis sebelum event</div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="mb-4">
-                                <label class="form-label">Hari Sebelum Event</label>
-                                <input type="number" class="form-control" id="hariSebelumEvent" min="1" max="365" value="7">
-                                <div class="form-text">
-                                    <button type="button" class="btn btn-sm btn-link p-0" onclick="applyHariSebelum()">
-                                        Terapkan
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     
-                    <!-- SECTION 2: TIPE PENDAFTARAN -->
+                    <!-- SECTION: PENGATURAN PENDAFTARAN -->
                     <h4 class="section-title">
-                        <i class="fas fa-users"></i> Tipe Pendaftaran
+                        <i class="fas fa-user-check"></i> Pengaturan Pendaftaran
                     </h4>
                     
                     <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="mb-4">
-                                <label class="form-label">Tipe Pendaftaran</label>
-                                <select name="tipe_pendaftaran" class="form-select" id="tipePendaftaran">
-                                    <option value="individu" <?php echo ($event['tipe_pendaftaran'] ?? 'individu') == 'individu' ? 'selected' : ''; ?>>👤 Individu (Peserta per orang)</option>
-                                    <option value="tim" <?php echo ($event['tipe_pendaftaran'] ?? '') == 'tim' ? 'selected' : ''; ?>>👥 Tim (Kelompok peserta)</option>
-                                    <option value="individu_tim" <?php echo ($event['tipe_pendaftaran'] ?? '') == 'individu_tim' ? 'selected' : ''; ?>>🤝 Individu atau Tim (Opsional)</option>
-                                </select>
-                                <div class="form-text" id="tipePendaftaranHint">Pilih sesuai jenis event</div>
+                        <div class="col-md-12">
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" name="perlu_pendaftaran" 
+                                       id="perluPendaftaran" value="1" 
+                                       <?php echo ($event['perlu_pendaftaran'] ?? 1) ? 'checked' : ''; ?>>
+                                <label class="form-check-label" for="perluPendaftaran">
+                                    <strong><i class="fas fa-user-plus me-2"></i> Perlu Pendaftaran?</strong>
+                                </label>
+                                <div class="form-text mt-2">
+                                    <span id="pendaftaranStatusText">Event ini memerlukan pendaftaran dari peserta.</span>
+                                    <br>
+                                    <span class="text-muted">Matikan jika event tidak memerlukan pendaftaran (contoh: acara terbuka untuk umum).</span>
+                                </div>
                             </div>
-                        </div>
-                        
-                        <!-- MODE BUTTONS -->
-                        <div class="col-md-8">
-                            <div class="mode-buttons" id="modeButtons">
-                                <span class="mode-btn active" data-mode="individu_saja">Hanya Individu</span>
-                                <span class="mode-btn" data-mode="wajib_tim">Wajib Tim</span>
-                                <span class="mode-btn" data-mode="opsional_tim">Opsional Tim</span>
-                                <span class="mode-btn" data-mode="campuran">Campuran</span>
-                            </div>
-                            <div class="form-text" id="modeHint"></div>
                         </div>
                     </div>
                     
-                    <!-- TIM SETTINGS -->
-                    <div class="tim-settings <?php echo in_array($event['tipe_pendaftaran'] ?? 'individu', ['tim', 'individu_tim']) ? 'show' : ''; ?>" id="timSettings">
-                        <h5><i class="fas fa-cog me-2"></i> Pengaturan Tim</h5>
+                    <!-- SETTINGS PENDAFTARAN (Hanya tampil jika perlu pendaftaran) -->
+                    <div class="pendaftaran-settings <?php echo ($event['perlu_pendaftaran'] ?? 1) ? 'show' : 'hide'; ?>" id="pendaftaranSettings">
                         
-                        <div class="info-box" id="timInfoBox">
-                            <i class="fas fa-lightbulb me-2"></i>
-                            <div id="timInfoContent">
-                                <strong>Tips:</strong> Untuk event tim, atur minimal dan maksimal anggota tim.
-                            </div>
-                        </div>
-                        
-                        <div class="row mt-4">
+                        <div class="row mb-4">
                             <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Minimal Anggota</label>
-                                    <input type="number" name="min_anggota" class="form-control" 
-                                           id="minAnggota" value="<?php echo $event['min_anggota'] ?? 1; ?>" min="1" max="50">
-                                    <div class="form-text" id="minAnggotaHint">Termasuk ketua tim</div>
+                                <div class="mb-4">
+                                    <label class="form-label">Batas Pendaftaran</label>
+                                    <input type="date" name="batas_pendaftaran" class="form-control" 
+                                           value="<?php echo $event['batas_pendaftaran'] ?? ''; ?>" 
+                                           id="batasPendaftaran">
+                                    <div class="form-text">Kosongkan = sampai hari H</div>
                                 </div>
                             </div>
                             
                             <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Maksimal Anggota</label>
-                                    <input type="number" name="max_anggota" class="form-control" 
-                                           id="maxAnggota" value="<?php echo $event['max_anggota'] ?? 1; ?>" min="1" max="50">
-                                    <div class="form-text" id="maxAnggotaHint">Termasuk ketua tim</div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-4">
-                                <div class="mb-3">
-                                    <label class="form-label">Preset Cepat</label>
-                                    <div class="preset-buttons" id="presetContainer">
-                                        <span class="preset-btn" data-min="7" data-max="12" data-kategori="olahraga">Futsal</span>
-                                        <span class="preset-btn" data-min="5" data-max="10" data-kategori="olahraga">Basket</span>
-                                        <span class="preset-btn" data-min="2" data-max="4" data-kategori="olahraga">Badminton</span>
-                                        <span class="preset-btn" data-min="2" data-max="5" data-kategori="akademik">Penelitian</span>
-                                        <span class="preset-btn" data-min="1" data-max="3" data-kategori="akademik">Karya Tulis</span>
-                                        <span class="preset-btn" data-min="3" data-max="8" data-kategori="seni">Band</span>
-                                        <span class="preset-btn" data-min="5" data-max="15" data-kategori="seni">Tari</span>
-                                        <span class="preset-btn" data-min="3" data-max="10" data-kategori="pameran">Stand Expo</span>
-                                        <span class="preset-btn" data-min="1" data-max="1" data-kategori="seminar">Seminar</span>
-                                        <span class="preset-btn" data-min="1" data-max="1" data-kategori="sosial">Volunteer</span>
+                                <div class="mb-4">
+                                    <label class="form-label">Status Pendaftaran</label>
+                                    <div class="status-pendaftaran-box" id="statusPendaftaran">
+                                        <span class="text-muted">Auto-deteksi</span>
                                     </div>
-                                    <div class="form-text" id="presetHint">Klik preset untuk pengaturan cepat</div>
+                                    <div class="form-text" id="hitungMundur">-</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label">Quick Set</label>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(7)">
+                                            1 Minggu
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setBatasPendaftaran(3)">
+                                            3 Hari
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearBatasPendaftaran()">
+                                            Hapus
+                                        </button>
+                                    </div>
+                                    <div class="form-text">Set otomatis sebelum event</div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="alert alert-warning mt-3" id="timWarning">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>Catatan:</strong> Peserta akan mendaftar dengan sistem tim dan harus mengisi data semua anggota.
+                        <!-- SECTION 2: TIPE PENDAFTARAN -->
+                        <h5 class="section-title mt-4 mb-3">
+                            <i class="fas fa-users"></i> Tipe Pendaftaran
+                        </h5>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label">Tipe Pendaftaran</label>
+                                    <select name="tipe_pendaftaran" class="form-select" id="tipePendaftaran">
+                                        <option value="individu" <?php echo ($event['tipe_pendaftaran'] ?? 'individu') == 'individu' ? 'selected' : ''; ?>>👤 Individu (Peserta per orang)</option>
+                                        <option value="tim" <?php echo ($event['tipe_pendaftaran'] ?? '') == 'tim' ? 'selected' : ''; ?>>👥 Tim (Kelompok peserta)</option>
+                                        <option value="individu_tim" <?php echo ($event['tipe_pendaftaran'] ?? '') == 'individu_tim' ? 'selected' : ''; ?>>🤝 Individu atau Tim (Opsional)</option>
+                                    </select>
+                                    <div class="form-text" id="tipePendaftaranHint">Pilih sesuai jenis event</div>
+                                </div>
+                            </div>
+                            
+                            <!-- MODE BUTTONS -->
+                            <div class="col-md-8">
+                                <div class="mode-buttons" id="modeButtons">
+                                    <span class="mode-btn active" data-mode="individu_saja">Hanya Individu</span>
+                                    <span class="mode-btn" data-mode="wajib_tim">Wajib Tim</span>
+                                    <span class="mode-btn" data-mode="opsional_tim">Opsional Tim</span>
+                                    <span class="mode-btn" data-mode="campuran">Campuran</span>
+                                </div>
+                                <div class="form-text" id="modeHint"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- TIM SETTINGS -->
+                        <div class="tim-settings <?php echo in_array($event['tipe_pendaftaran'] ?? 'individu', ['tim', 'individu_tim']) ? 'show' : ''; ?>" id="timSettings">
+                            <h6><i class="fas fa-cog me-2"></i> Pengaturan Tim</h6>
+                            
+                            <div class="info-box" id="timInfoBox">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                <div id="timInfoContent">
+                                    <strong>Tips:</strong> Untuk event tim, atur minimal dan maksimal anggota tim.
+                                </div>
+                            </div>
+                            
+                            <div class="row mt-4">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Minimal Anggota</label>
+                                        <input type="number" name="min_anggota" class="form-control" 
+                                               id="minAnggota" value="<?php echo $event['min_anggota'] ?? 1; ?>" min="1" max="50">
+                                        <div class="form-text" id="minAnggotaHint">Termasuk ketua tim</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Maksimal Anggota</label>
+                                        <input type="number" name="max_anggota" class="form-control" 
+                                               id="maxAnggota" value="<?php echo $event['max_anggota'] ?? 1; ?>" min="1" max="50">
+                                        <div class="form-text" id="maxAnggotaHint">Termasuk ketua tim</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label class="form-label">Preset Cepat</label>
+                                        <div class="preset-buttons" id="presetContainer">
+                                            <span class="preset-btn" data-min="7" data-max="12" data-kategori="olahraga">Futsal</span>
+                                            <span class="preset-btn" data-min="5" data-max="10" data-kategori="olahraga">Basket</span>
+                                            <span class="preset-btn" data-min="2" data-max="4" data-kategori="olahraga">Badminton</span>
+                                            <span class="preset-btn" data-min="2" data-max="5" data-kategori="akademik">Penelitian</span>
+                                            <span class="preset-btn" data-min="1" data-max="3" data-kategori="akademik">Karya Tulis</span>
+                                            <span class="preset-btn" data-min="3" data-max="8" data-kategori="seni">Band</span>
+                                            <span class="preset-btn" data-min="5" data-max="15" data-kategori="seni">Tari</span>
+                                            <span class="preset-btn" data-min="3" data-max="10" data-kategori="pameran">Stand Expo</span>
+                                            <span class="preset-btn" data-min="1" data-max="1" data-kategori="seminar">Seminar</span>
+                                            <span class="preset-btn" data-min="1" data-max="1" data-kategori="sosial">Volunteer</span>
+                                        </div>
+                                        <div class="form-text" id="presetHint">Klik preset untuk pengaturan cepat</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-warning mt-3" id="timWarning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Catatan:</strong> Peserta akan mendaftar dengan sistem tim dan harus mengisi data semua anggota.
+                            </div>
+                        </div>
+                        
+                        <!-- SECTION 5: INFORMASI PENDAFTARAN -->
+                        <h5 class="section-title mt-4 mb-3">
+                            <i class="fas fa-user-plus"></i> Informasi Pendaftaran
+                        </h5>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label">Kuota Peserta</label>
+                                    <input type="number" name="kuota_peserta" class="form-control" 
+                                           value="<?php echo $event['kuota_peserta'] ?? 0; ?>" min="0">
+                                    <div class="form-text" id="kuotaLabel">0 = tidak terbatas (per orang)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label">Biaya Pendaftaran</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">Rp</span>
+                                        <input type="number" name="biaya_pendaftaran" class="form-control" 
+                                               value="<?php echo $event['biaya_pendaftaran'] ?? 0; ?>" min="0" step="1000">
+                                    </div>
+                                    <div class="form-text" id="biayaLabel">0 = gratis (per orang)</div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label">Link Pendaftaran</label>
+                                    <input type="url" name="link_pendaftaran" class="form-control" 
+                                           value="<?php echo htmlspecialchars($event['link_pendaftaran'] ?? ''); ?>" 
+                                           placeholder="https://forms.google.com/...">
+                                    <div class="form-text">Kosongkan jika pakai sistem pendaftaran website</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -1008,44 +1099,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                        value="<?php echo htmlspecialchars($event['contact_wa'] ?? ''); ?>" 
                                        placeholder="Contoh: 081234567890">
                                 <div class="form-text">Untuk informasi lebih lanjut</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- SECTION 5: PENDAFTARAN -->
-                    <h4 class="section-title">
-                        <i class="fas fa-user-plus"></i> Informasi Pendaftaran
-                    </h4>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="mb-4">
-                                <label class="form-label">Kuota Peserta</label>
-                                <input type="number" name="kuota_peserta" class="form-control" 
-                                       value="<?php echo $event['kuota_peserta'] ?? 0; ?>" min="0">
-                                <div class="form-text" id="kuotaLabel">0 = tidak terbatas (per orang)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="mb-4">
-                                <label class="form-label">Biaya Pendaftaran</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">Rp</span>
-                                    <input type="number" name="biaya_pendaftaran" class="form-control" 
-                                           value="<?php echo $event['biaya_pendaftaran'] ?? 0; ?>" min="0" step="1000">
-                                </div>
-                                <div class="form-text" id="biayaLabel">0 = gratis (per orang)</div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-4">
-                            <div class="mb-4">
-                                <label class="form-label">Link Pendaftaran</label>
-                                <input type="url" name="link_pendaftaran" class="form-control" 
-                                       value="<?php echo htmlspecialchars($event['link_pendaftaran'] ?? ''); ?>" 
-                                       placeholder="https://forms.google.com/...">
-                                <div class="form-text">Kosongkan jika pakai sistem pendaftaran website</div>
                             </div>
                         </div>
                     </div>
@@ -1310,11 +1363,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             updateStatusPendaftaran();
         }
         
-        // Terapkan hari sebelum event
-        function applyHariSebelum() {
-            const hari = parseInt(document.getElementById('hariSebelumEvent').value);
-            if (hari > 0) {
-                setBatasPendaftaran(hari);
+        // Toggle pengaturan pendaftaran
+        function togglePendaftaranSettings() {
+            const perluPendaftaran = document.getElementById('perluPendaftaran').checked;
+            const pendaftaranSettings = document.getElementById('pendaftaranSettings');
+            const statusText = document.getElementById('pendaftaranStatusText');
+            
+            if (perluPendaftaran) {
+                pendaftaranSettings.classList.remove('hide');
+                pendaftaranSettings.classList.add('show');
+                statusText.textContent = 'Event ini memerlukan pendaftaran dari peserta.';
+                statusText.style.color = '#198754';
+            } else {
+                pendaftaranSettings.classList.remove('show');
+                pendaftaranSettings.classList.add('hide');
+                statusText.textContent = 'Event ini TIDAK memerlukan pendaftaran. Acara terbuka untuk umum.';
+                statusText.style.color = '#6c757d';
             }
         }
         
@@ -1352,85 +1416,88 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 };
             }
             
-            // APPLY CONFIGURATION
-            // 1. Update tipe pendaftaran
-            const tipePendaftaran = document.getElementById('tipePendaftaran');
-            tipePendaftaran.value = config.tipe_pendaftaran;
-            
-            // 2. Update hints
-            document.getElementById('tipePendaftaranHint').textContent = config.hint;
-            document.getElementById('kategoriHintText').textContent = config.hint;
-            document.getElementById('timInfoContent').innerHTML = `<strong>Tips:</strong> ${config.tim_info}`;
-            document.getElementById('timWarning').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Catatan:</strong> ${config.warning}`;
-            
-            // 3. Update labels
-            document.getElementById('kuotaLabel').textContent = `0 = tidak terbatas (${config.kuota_label})`;
-            document.getElementById('biayaLabel').textContent = `0 = gratis (${config.biaya_label})`;
-            
-            // 4. Update min/max anggota
-            if (config.tipe_pendaftaran !== 'individu') {
-                document.getElementById('minAnggota').value = config.min_anggota;
-                document.getElementById('maxAnggota').value = config.max_anggota;
+            // APPLY CONFIGURATION (hanya jika perlu pendaftaran)
+            const perluPendaftaran = document.getElementById('perluPendaftaran').checked;
+            if (perluPendaftaran) {
+                // 1. Update tipe pendaftaran
+                const tipePendaftaran = document.getElementById('tipePendaftaran');
+                tipePendaftaran.value = config.tipe_pendaftaran;
                 
-                if (config.mode === 'wajib_tim') {
-                    document.getElementById('minAnggotaHint').textContent = `Minimal anggota wajib (tim)`;
-                    document.getElementById('maxAnggotaHint').textContent = `Maksimal anggota (tim)`;
-                } else {
-                    document.getElementById('minAnggotaHint').textContent = `Minimal jika berkelompok`;
-                    document.getElementById('maxAnggotaHint').textContent = `Maksimal jika berkelompok`;
+                // 2. Update hints
+                document.getElementById('tipePendaftaranHint').textContent = config.hint;
+                document.getElementById('kategoriHintText').textContent = config.hint;
+                document.getElementById('timInfoContent').innerHTML = `<strong>Tips:</strong> ${config.tim_info}`;
+                document.getElementById('timWarning').innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i><strong>Catatan:</strong> ${config.warning}`;
+                
+                // 3. Update labels
+                document.getElementById('kuotaLabel').textContent = `0 = tidak terbatas (${config.kuota_label})`;
+                document.getElementById('biayaLabel').textContent = `0 = gratis (${config.biaya_label})`;
+                
+                // 4. Update min/max anggota
+                if (config.tipe_pendaftaran !== 'individu') {
+                    document.getElementById('minAnggota').value = config.min_anggota;
+                    document.getElementById('maxAnggota').value = config.max_anggota;
+                    
+                    if (config.mode === 'wajib_tim') {
+                        document.getElementById('minAnggotaHint').textContent = `Minimal anggota wajib (tim)`;
+                        document.getElementById('maxAnggotaHint').textContent = `Maksimal anggota (tim)`;
+                    } else {
+                        document.getElementById('minAnggotaHint').textContent = `Minimal jika berkelompok`;
+                        document.getElementById('maxAnggotaHint').textContent = `Maksimal jika berkelompok`;
+                    }
                 }
-            }
-            
-            // 5. Update mode buttons
-            const modeButtons = document.getElementById('modeButtons');
-            const modeHint = document.getElementById('modeHint');
-            
-            if (config.mode && config.mode !== 'individu_saja') {
-                modeButtons.style.display = 'flex';
                 
-                document.querySelectorAll('.mode-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.dataset.mode === config.mode) {
-                        btn.classList.add('active');
+                // 5. Update mode buttons
+                const modeButtons = document.getElementById('modeButtons');
+                const modeHint = document.getElementById('modeHint');
+                
+                if (config.mode && config.mode !== 'individu_saja') {
+                    modeButtons.style.display = 'flex';
+                    
+                    document.querySelectorAll('.mode-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.mode === config.mode) {
+                            btn.classList.add('active');
+                        }
+                    });
+                    
+                    const modeHints = {
+                        'wajib_tim': 'Peserta WAJIB mendaftar sebagai tim (contoh: olahraga)',
+                        'opsional_tim': 'Peserta bisa pilih: individu ATAU tim (contoh: lomba karya tulis)',
+                        'campuran': 'Baik individu maupun tim bisa daftar (fleksibel)',
+                        'individu_saja': 'Hanya individu yang bisa mendaftar'
+                    };
+                    modeHint.textContent = modeHints[config.mode] || '';
+                } else {
+                    modeButtons.style.display = 'none';
+                    modeHint.textContent = '';
+                }
+                
+                // 6. Highlight preset buttons
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.classList.remove('active', 'recommended');
+                    
+                    const presetKategori = btn.dataset.kategori;
+                    if (presetKategori === kategoriKey) {
+                        btn.classList.add('recommended');
+                    }
+                    
+                    if (config.recommended_presets.includes(btn.textContent)) {
+                        btn.classList.add('recommended');
                     }
                 });
                 
-                const modeHints = {
-                    'wajib_tim': 'Peserta WAJIB mendaftar sebagai tim (contoh: olahraga)',
-                    'opsional_tim': 'Peserta bisa pilih: individu ATAU tim (contoh: lomba karya tulis)',
-                    'campuran': 'Baik individu maupun tim bisa daftar (fleksibel)',
-                    'individu_saja': 'Hanya individu yang bisa mendaftar'
-                };
-                modeHint.textContent = modeHints[config.mode] || '';
-            } else {
-                modeButtons.style.display = 'none';
-                modeHint.textContent = '';
-            }
-            
-            // 6. Highlight preset buttons
-            document.querySelectorAll('.preset-btn').forEach(btn => {
-                btn.classList.remove('active', 'recommended');
-                
-                const presetKategori = btn.dataset.kategori;
-                if (presetKategori === kategoriKey) {
-                    btn.classList.add('recommended');
+                // 7. Update preset hint
+                if (config.recommended_presets.length > 0) {
+                    document.getElementById('presetHint').textContent = 
+                        `Rekomendasi: ${config.recommended_presets.join(', ')}`;
+                } else {
+                    document.getElementById('presetHint').textContent = 'Klik preset untuk pengaturan cepat';
                 }
                 
-                if (config.recommended_presets.includes(btn.textContent)) {
-                    btn.classList.add('recommended');
-                }
-            });
-            
-            // 7. Update preset hint
-            if (config.recommended_presets.length > 0) {
-                document.getElementById('presetHint').textContent = 
-                    `Rekomendasi: ${config.recommended_presets.join(', ')}`;
-            } else {
-                document.getElementById('presetHint').textContent = 'Klik preset untuk pengaturan cepat';
+                // 8. Toggle tim settings
+                toggleTimSettings();
             }
-            
-            // 8. Toggle tim settings
-            toggleTimSettings();
             
             // 9. Show kategori hint box
             document.getElementById('kategoriHintBox').classList.add('show');
@@ -1438,6 +1505,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         
         // FUNGSI TOGGLE TIM SETTINGS
         function toggleTimSettings() {
+            const perluPendaftaran = document.getElementById('perluPendaftaran').checked;
+            if (!perluPendaftaran) {
+                document.getElementById('timSettings').classList.remove('show');
+                return;
+            }
+            
             const tipe = document.getElementById('tipePendaftaran').value;
             const timSettings = document.getElementById('timSettings');
             
@@ -1467,6 +1540,21 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 ],
                 placeholder: 'Tulis deskripsi lengkap event di sini...'
             });
+            
+            // Event listener untuk toggle pendaftaran
+            document.getElementById('perluPendaftaran').addEventListener('change', function() {
+                togglePendaftaranSettings();
+                if (!this.checked) {
+                    // Jika tidak perlu pendaftaran, reset beberapa field
+                    document.getElementById('batasPendaftaran').value = '';
+                    document.getElementById('kuota_peserta').value = 0;
+                    document.getElementById('biaya_pendaftaran').value = 0;
+                    document.getElementById('link_pendaftaran').value = '';
+                }
+            });
+            
+            // Initialize toggle pendaftaran
+            togglePendaftaranSettings();
             
             // Event listeners untuk batas pendaftaran
             document.getElementById('tanggalEvent').addEventListener('change', updateStatusPendaftaran);
@@ -1626,40 +1714,43 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     }
                 });
                 
-                // Validasi khusus untuk tim
-                const tipe = document.getElementById('tipePendaftaran').value;
-                if (tipe === 'tim') {
-                    const min = parseInt(document.getElementById('minAnggota').value);
-                    const max = parseInt(document.getElementById('maxAnggota').value);
-                    
-                    if (min > max) {
-                        valid = false;
-                        alert('Minimal anggota tidak boleh lebih besar dari maksimal anggota!');
-                        document.getElementById('minAnggota').focus();
-                        return false;
+                // Validasi khusus untuk tim (hanya jika perlu pendaftaran)
+                const perluPendaftaran = document.getElementById('perluPendaftaran').checked;
+                if (perluPendaftaran) {
+                    const tipe = document.getElementById('tipePendaftaran').value;
+                    if (tipe === 'tim') {
+                        const min = parseInt(document.getElementById('minAnggota').value);
+                        const max = parseInt(document.getElementById('maxAnggota').value);
+                        
+                        if (min > max) {
+                            valid = false;
+                            alert('Minimal anggota tidak boleh lebih besar dari maksimal anggota!');
+                            document.getElementById('minAnggota').focus();
+                            return false;
+                        }
+                        
+                        if (min < 2) {
+                            valid = false;
+                            alert('Untuk pendaftaran tim, minimal anggota harus 2 atau lebih!');
+                            document.getElementById('minAnggota').focus();
+                            return false;
+                        }
                     }
                     
-                    if (min < 2) {
-                        valid = false;
-                        alert('Untuk pendaftaran tim, minimal anggota harus 2 atau lebih!');
-                        document.getElementById('minAnggota').focus();
-                        return false;
-                    }
-                }
-                
-                // Validasi batas pendaftaran
-                const tanggalEvent = document.getElementById('tanggalEvent').value;
-                const batasPendaftaran = document.getElementById('batasPendaftaran').value;
-                
-                if (batasPendaftaran && tanggalEvent) {
-                    const eventDate = new Date(tanggalEvent);
-                    const deadlineDate = new Date(batasPendaftaran);
+                    // Validasi batas pendaftaran (hanya jika perlu pendaftaran)
+                    const tanggalEvent = document.getElementById('tanggalEvent').value;
+                    const batasPendaftaran = document.getElementById('batasPendaftaran').value;
                     
-                    if (deadlineDate > eventDate) {
-                        valid = false;
-                        alert('❌ Batas pendaftaran tidak boleh setelah tanggal event!');
-                        document.getElementById('batasPendaftaran').focus();
-                        return false;
+                    if (batasPendaftaran && tanggalEvent) {
+                        const eventDate = new Date(tanggalEvent);
+                        const deadlineDate = new Date(batasPendaftaran);
+                        
+                        if (deadlineDate > eventDate) {
+                            valid = false;
+                            alert('❌ Batas pendaftaran tidak boleh setelah tanggal event!');
+                            document.getElementById('batasPendaftaran').focus();
+                            return false;
+                        }
                     }
                 }
                 

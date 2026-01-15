@@ -465,10 +465,8 @@ $total_selesai = mysqli_num_rows($selesai_events);
                     
                     <!-- LAINNYA -->
                     <div class="menu-section mt-2">
-                        <small class="px-3 d-block text-uppercase opacity-75">Lainnya</small>
-                        <a href="pengaturan.php" class="nav-link">
-                            <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
-                        </a>
+                        <small class="px-3 d-block text-uppercase opacity-75">Pendaftar</small>
+                        
                         <a href="admin_peserta.php" class="nav-link">
                             <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
                         </a>

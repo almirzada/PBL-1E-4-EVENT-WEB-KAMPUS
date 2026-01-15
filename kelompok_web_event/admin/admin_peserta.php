@@ -317,19 +317,19 @@ $events_result = mysqli_query($conn, $events_query);
 
 <body>
     <div class="admin-wrapper">
-        <!-- SIDEBAR -->
+         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-header text-center">
                 <h4><i class="fas fa-calendar-alt"></i> <span class="menu-text">PortalKampus</span></h4>
                 <small class="menu-text">Admin Panel</small>
             </div>
-
+            
             <div class="sidebar-menu">
                 <nav class="nav flex-column">
-                    <a href="dashboard.php" class="nav-link active">
+                    <a href="dashboard.php" class="nav-link">
                         <i class="fas fa-tachometer-alt"></i> <span class="menu-text">Dashboard</span>
                     </a>
-
+                    
                     <!-- EVENT MENU -->
                     <div class="menu-section mt-2">
                         <small class="px-3 d-block text-uppercase opacity-75">Event</small>
@@ -340,7 +340,7 @@ $events_result = mysqli_query($conn, $events_query);
                             <i class="fas fa-list"></i> <span class="menu-text">Semua Event</span>
                         </a>
                     </div>
-
+                    
                     <!-- BERITA MENU -->
                     <div class="menu-section mt-2">
                         <small class="px-3 d-block text-uppercase opacity-75">Berita</small>
@@ -351,21 +351,28 @@ $events_result = mysqli_query($conn, $events_query);
                             <i class="fas fa-plus-circle"></i> <span class="menu-text">Tambah Berita</span>
                         </a>
                     </div>
-
+                    
                     <!-- LAINNYA -->
                     <div class="menu-section mt-2">
-                        <small class="px-3 d-block text-uppercase opacity-75">Lainnya</small>
-                        <a href="pengaturan.php" class="nav-link">
-                            <i class="fas fa-tags"></i> <span class="menu-text">Kategori</span>
-                        </a>
-                        <a href="admin_peserta.php" class="nav-link">
+                        <small class="px-3 d-block text-uppercase opacity-75">Pendaftar</small>
+                        
+                        <a href="admin_peserta.php" class="nav-link active">
                             <i class="fas fa-users"></i> <span class="menu-text">Peserta</span>
                         </a>
-                        <a href="pengaturan.php" class="nav-link">
-                            <i class="fas fa-cog"></i> <span class="menu-text">Pengaturan</span>
-                        </a>
+                       <?php if ($_SESSION['admin_event_level'] == 'superadmin'): ?>
+<!-- MENU SUPERADMIN -->
+<div class="menu-section mt-2">
+    <small class="px-3 d-block text-uppercase opacity-75">Superadmin</small>
+    <a href="admin_management.php" class="nav-link">
+        <i class="fas fa-users-cog"></i> <span class="menu-text">Kelola Admin</span>
+    </a>
+    <a href="admin_approval.php" class="nav-link">
+        <i class="fas fa-user-check"></i> <span class="menu-text">Persetujuan</span>
+    </a>
+</div>
+<?php endif; ?>
                     </div>
-
+                    
                     <div class="mt-4 pt-3 border-top border-secondary">
                         <a href="../index.php" class="nav-link" target="_blank">
                             <i class="fas fa-external-link-alt"></i> <span class="menu-text">Lihat Website</span>
@@ -1228,14 +1235,6 @@ function deletePeserta(pesertaId, pesertaName) {
             }
         }
 
-        // NONAKTIFKAN AUTO REFRESH DULU (BIAR GA ERROR)
-        // setInterval(() => {
-        //     // Cek jika ada filter aktif
-        //     if (!dataTable.search() && $('#filterEvent').val() === '') {
-        //         // Refresh data
-        //         dataTable.ajax.reload(null, false);
-        //     }
-        // }, 30000);
     </script>
 </body>
 
