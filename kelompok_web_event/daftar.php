@@ -15,7 +15,7 @@ $event_id = intval($_GET['id']);
 // ================================================
 // AMBIL DATA EVENT
 // ================================================
-$event_query = "SELECT e.*, k.nama as kategori_nama, k.warna 
+$event_query = "SELECT e.*, k.nama as kategori_nama, k.warna, k.ikon 
                 FROM events e 
                 LEFT JOIN kategori k ON e.kategori_id = k.id 
                 WHERE e.id = $event_id AND e.status = 'publik'";
@@ -246,83 +246,221 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     }
 }
+
+// AMBIL DATA UNTUK NAVBAR SEARCH (sama seperti index.php)
+$search_query = "SELECT judul FROM events WHERE status = 'publik' LIMIT 5";
+$search_result = mysqli_query($conn, $search_query);
+$search_suggestions = [];
+if ($search_result) {
+    while ($row = mysqli_fetch_assoc($search_result)) {
+        $search_suggestions[] = $row['judul'];
+    }
+}
 ?>
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pendaftaran - <?php echo htmlspecialchars($event['judul']); ?></title>
+    <title>Pendaftaran - <?php echo htmlspecialchars($event['judul']); ?> - Portal Kampus</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* VARIABLES SAMA DENGAN INDEX.PHP */
         :root {
-            --primary: #4361ee;
-            --secondary: #3a0ca3;
-            --success: #28a745;
-            --warning: #ffc107;
-            --danger: #f72585;
+            --primary-color: #0056b3;
+            --primary-dark: #003d82;
+            --secondary-color: #f8f9fa;
+            --accent-color: #ffc107;
+            --accent-dark: #e0a800;
+            --text-color: #333;
+            --light-color: #fff;
+            --gray-light: #f5f7fa;
+            --gray-medium: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
         }
-        
+
         body {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: var(--text-color);
+            background: linear-gradient(to bottom, #f0f1f3ff 80%, #ffffff 100%);
             min-height: 100vh;
-            padding-bottom: 50px;
         }
-        
-        /* HEADER */
-        .header-event {
-            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+
+        /* ===== NAVBAR SAMA DENGAN INDEX.PHP ===== */
+        .navbar {
+            background-color: var(--primary-color) !important;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-nav .nav-link {
+            position: relative;
+            padding-bottom: 6px;
+        }
+
+        .navbar-nav .nav-link::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: 0;
+            width: 0;
+            height: 2px;
+            background-color: #ffffffff;
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .navbar-nav .nav-link:hover::after,
+        .navbar-nav .nav-link.active::after {
+            width: 100%;
+        }
+
+        .navbar-brand img {
+            height: 50px;
+        }
+
+        /* SEARCH FORM SAMA DENGAN INDEX.PHP */
+        .search-form {
+            margin-right: 15px;
+        }
+
+        .search-input {
+            width: 250px;
+            border-radius: 20px 0 0 20px !important;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-input:focus {
+            width: 300px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            border-color: rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.1);
+        }
+
+        .search-input:focus::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .btn-outline-light.btn-sm {
+            border-radius: 0 20px 20px 0 !important;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0.375rem 1rem;
+        }
+
+        .btn-outline-light.btn-sm:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== HEADER PENDAFTARAN SOLID ===== */
+        .registration-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
             padding: 50px 0;
             margin-bottom: 40px;
             border-radius: 0 0 20px 20px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
-        }
-        
-        .event-badge {
-            background: rgba(255,255,255,0.2);
-            padding: 8px 20px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            display: inline-block;
-            margin-bottom: 15px;
-        }
-        
-        /* FORM CONTAINER */
-        .form-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 40px;
-            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 86, 179, 0.3);
             position: relative;
             overflow: hidden;
         }
-        
-        .form-container::before {
+
+        .registration-header::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
-            width: 8px;
-            height: 100%;
-            background: linear-gradient(to bottom, var(--primary) 0%, var(--secondary) 100%);
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
+            pointer-events: none;
         }
-        
-        /* TIPE SELECTION */
-        .tipe-selection {
+
+        .event-badge-custom {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 25px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        /* ===== FORM CONTAINER SOLID ===== */
+        .form-container-solid {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            margin-bottom: 40px;
+            border: 3px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .form-container-solid::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
+        }
+
+        .form-section-solid {
+            margin-bottom: 35px;
+            padding-bottom: 25px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .section-title-solid {
+            color: var(--primary-color);
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 1.4rem;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .section-title-solid i {
+            background: var(--primary-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        /* ===== TIPE SELECTION SOLID ===== */
+        .tipe-selection-solid {
             display: flex;
             gap: 20px;
             margin-bottom: 30px;
-            flex-wrap: wrap;
         }
-        
-        .tipe-card {
+
+        .tipe-card-solid {
             flex: 1;
-            min-width: 200px;
-            border: 2px solid #dee2e6;
+            border: 3px solid #dee2e6;
             border-radius: 15px;
             padding: 25px;
             text-align: center;
@@ -330,356 +468,543 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             transition: all 0.3s;
             background: white;
         }
-        
-        .tipe-card:hover {
-            border-color: var(--primary);
+
+        .tipe-card-solid:hover {
+            border-color: var(--primary-color);
             transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.1);
+            box-shadow: 0 15px 30px rgba(0, 86, 179, 0.15);
         }
-        
-        .tipe-card.active {
-            border-color: var(--primary);
-            background: linear-gradient(135deg, rgba(67, 97, 238, 0.05) 0%, rgba(58, 12, 163, 0.05) 100%);
+
+        .tipe-card-solid.active {
+            border-color: var(--primary-color);
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
         }
-        
-        .tipe-icon {
-            font-size: 3rem;
+
+        .tipe-icon-solid {
+            font-size: 3.5rem;
             margin-bottom: 15px;
-            color: var(--primary);
+            color: var(--primary-color);
         }
-        
-        /* FORM SECTIONS */
-        .form-section {
-            margin-bottom: 35px;
-            padding-bottom: 25px;
-            border-bottom: 2px dashed #eee;
-        }
-        
-        .section-title {
-            color: var(--primary);
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .section-title i {
-            background: var(--primary);
-            color: white;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        /* ANGGOTA CARD */
-        .anggota-card {
-            border: 1px solid #dee2e6;
+
+        /* ===== ANGGOTA CARD SOLID ===== */
+        .anggota-card-solid {
+            border: 2px solid #dee2e6;
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
             background: #f8f9fa;
+            position: relative;
             transition: all 0.3s;
         }
-        
-        .anggota-card:hover {
-            border-color: var(--primary);
+
+        .anggota-card-solid:hover {
+            border-color: var(--primary-color);
             background: white;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
-        
-        .anggota-header {
+
+        .anggota-header-solid {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
         }
-        
-        .anggota-label {
-            font-weight: 600;
-            color: var(--primary);
-            font-size: 1.1rem;
+
+        .anggota-label-solid {
+            font-weight: 700;
+            color: var(--primary-color);
+            font-size: 1.2rem;
         }
-        
-        .badge-ketua {
-            background: var(--primary);
+
+        .badge-ketua-solid {
+            background: var(--primary-color);
             color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-weight: 700;
+            font-size: 0.9rem;
         }
-        
-        /* BUTTONS */
-        .btn-add {
-            background: var(--success);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            padding: 10px 25px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-add:hover {
-            background: #218838;
-            transform: translateY(-2px);
-        }
-        
-        .btn-remove {
-            background: var(--danger);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            padding: 10px 25px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-remove:hover {
-            background: #e31c5f;
-            transform: translateY(-2px);
-        }
-        
-        .btn-submit {
-            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-            color: white;
-            padding: 15px 40px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            border: none;
-            border-radius: 12px;
-            transition: all 0.3s;
-        }
-        
-        .btn-submit:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(67, 97, 238, 0.3);
-        }
-        
-        /* INFO BOX */
-        .info-box {
-            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-            border-left: 4px solid #2196f3;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-        }
-        
-        /* ERROR & SUCCESS */
-        .alert-custom {
-            border-radius: 12px;
-            border: none;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        /* COUNTER */
-        .anggota-counter {
-            background: var(--primary);
-            color: white;
+
+        .anggota-counter-solid {
+            position: absolute;
+            top: -15px;
+            left: 20px;
+            background: var(--accent-color);
+            color: #000;
             width: 35px;
             height: 35px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 800;
             font-size: 1.2rem;
-            position: absolute;
-            top: -15px;
-            right: -15px;
-            z-index: 1;
+            border: 3px solid white;
         }
-        
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .form-container {
-                padding: 25px;
-            }
-            
-            .tipe-selection {
-                flex-direction: column;
-            }
-            
-            .header-event {
-                padding: 30px 0;
-            }
+
+        /* ===== BUTTONS SOLID ===== */
+        .btn-solid-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white !important;
+            padding: 12px 30px;
+            border-radius: 10px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
-        
-        /* FEE BOX */
-        .fee-box {
-            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-            border-left: 4px solid #ffc107;
+
+        .btn-solid-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 86, 179, 0.3);
+            color: white;
+        }
+
+        .btn-solid-success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #1e7e34 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 10px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-solid-success:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(40, 167, 69, 0.3);
+        }
+
+        .btn-solid-danger {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #bd2130 100%);
+            color: white;
+            padding: 10px 25px;
+            border-radius: 10px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-solid-danger:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(220, 53, 69, 0.3);
+        }
+
+        .btn-solid-warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e0a800 100%);
+            color: #000;
+            padding: 10px 25px;
+            border-radius: 10px;
+            font-weight: 700;
+            border: none;
+            transition: all 0.3s;
+        }
+
+        .btn-solid-warning:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(255, 193, 7, 0.3);
+        }
+
+        /* ===== INFO BOXES SOLID ===== */
+        .info-box-solid {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border: 3px solid #2196f3;
             border-radius: 12px;
-            padding: 20px;
+            padding: 25px;
             margin-bottom: 25px;
         }
-        
-        /* QUOTA STATUS */
-        .quota-status {
+
+        .warning-box-solid {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            border: 3px solid var(--warning-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .danger-box-solid {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            border: 3px solid var(--danger-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .success-box-solid {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 3px solid var(--success-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        /* ===== QUOTA STATUS SOLID ===== */
+        .quota-status-solid {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 15px;
+            margin-bottom: 25px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #dee2e6;
+        }
+
+        .quota-progress-solid {
+            height: 15px;
+            border-radius: 8px;
+            flex-grow: 1;
+            background: #e9ecef;
+            overflow: hidden;
+        }
+
+        .quota-progress-bar-solid {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color) 0%, #20c997 100%);
+            border-radius: 8px;
+        }
+
+        /* ===== PAYMENT BOX SOLID ===== */
+        .payment-box-solid {
+            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+            border: 3px solid var(--warning-color);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .rekening-box-solid {
+            background: white;
+            border: 3px solid var(--primary-color);
+            border-radius: 12px;
+            padding: 20px;
             margin-bottom: 20px;
         }
-        
-        .progress {
-            height: 10px;
-            border-radius: 5px;
-            flex-grow: 1;
+
+        .rekening-item-solid {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 2px solid #f0f0f0;
         }
-        
-        /* BUKTI PEMBAYARAN STYLE */
-        .upload-area {
+
+        .rekening-item-solid:last-child {
+            border-bottom: none;
+        }
+
+        .copy-btn-solid {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .copy-btn-solid:hover {
+            background: var(--primary-dark);
+        }
+
+        /* ===== UPLOAD AREA SOLID ===== */
+        .upload-area-solid {
             border: 3px dashed #dee2e6;
             border-radius: 15px;
-            padding: 40px 20px;
+            padding: 50px 30px;
             text-align: center;
             background: #f8f9fa;
             cursor: pointer;
             transition: all 0.3s;
-            position: relative;
-            min-height: 200px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            margin-bottom: 25px;
         }
-        
-        .upload-area:hover {
-            border-color: var(--primary);
+
+        .upload-area-solid:hover {
+            border-color: var(--primary-color);
             background: #e8f4ff;
         }
-        
-        .upload-area.dragover {
-            border-color: var(--success);
+
+        .upload-area-solid.dragover {
+            border-color: var(--success-color);
             background: #e8fff0;
         }
-        
-        .upload-icon {
-            font-size: 4rem;
-            color: var(--primary);
-            margin-bottom: 15px;
+
+        .upload-icon-solid {
+            font-size: 5rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
         }
-        
-        .preview-container {
+
+        .preview-container-solid {
             position: relative;
-            margin-top: 20px;
+            margin-top: 25px;
+            border: 3px solid var(--primary-color);
+            border-radius: 15px;
+            padding: 20px;
+            background: white;
         }
-        
-        .preview-image {
+
+        .preview-image-solid {
             max-width: 100%;
             max-height: 300px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
         }
-        
-        .btn-remove-file {
+
+        .btn-remove-file-solid {
             position: absolute;
-            top: -10px;
-            right: -10px;
-            background: var(--danger);
+            top: -15px;
+            right: -15px;
+            background: var(--danger-color);
             color: white;
-            border: none;
-            width: 30px;
-            height: 30px;
+            border: 3px solid white;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
         }
-        
-        .info-rekening {
-            background: linear-gradient(135deg, #e6f7ff 0%, #b3e0ff 100%);
-            border-left: 4px solid #1890ff;
+
+        /* ===== ALERTS SOLID ===== */
+        .alert-custom-solid {
             border-radius: 12px;
+            border: 3px solid;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
             padding: 20px;
-            margin-top: 20px;
         }
-        
-        .rekening-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(0,0,0,0.1);
+
+        .alert-custom-solid.alert-danger {
+            border-color: var(--danger-color);
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
         }
-        
-        .rekening-item:last-child {
-            border-bottom: none;
+
+        .alert-custom-solid.alert-success {
+            border-color: var(--success-color);
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            color: #155724;
         }
-        
-        .copy-btn {
-            background: var(--primary);
+
+        .alert-custom-solid.alert-warning {
+            border-color: var(--warning-color);
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            color: #856404;
+        }
+
+        .alert-custom-solid.alert-info {
+            border-color: var(--info-color);
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            color: #0c5460;
+        }
+
+        /* ===== FOOTER SAMA DENGAN INDEX.PHP ===== */
+        .footer {
+            background-color: var(--primary-color);
             color: white;
-            border: none;
-            padding: 5px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
+            padding: 40px 0 20px;
+            margin-top: 60px;
         }
-        
-        .copy-btn:hover {
-            background: var(--secondary);
+
+        .footer a {
+            color: #ddd;
+            text-decoration: none;
         }
-        
-        .payment-instruction {
-            background: #fff8e1;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
+
+        .footer a:hover {
+            color: white;
         }
-        
-        .file-info {
-            background: #f1f8e9;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 15px;
+
+        .social-icons a {
+            display: inline-block;
+            margin-right: 15px;
+            font-size: 1.2rem;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 992px) {
+            .search-form {
+                margin: 10px 0;
+                width: 100%;
+            }
+            
+            .search-input {
+                width: 100% !important;
+                margin-bottom: 10px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .btn-outline-light.btn-sm {
+                width: 100%;
+                border-radius: 20px !important;
+            }
+            
+            .tipe-selection-solid {
+                flex-direction: column;
+            }
+            
+            .registration-header {
+                padding: 40px 0;
+            }
+            
+            .form-container-solid {
+                padding: 25px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .anggota-card-solid {
+                padding: 20px;
+            }
+            
+            .section-title-solid {
+                font-size: 1.2rem;
+            }
+            
+            .section-title-solid i {
+                width: 40px;
+                height: 40px;
+                font-size: 1.1rem;
+            }
+            
+            .rekening-item-solid {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .form-container-solid {
+                padding: 20px;
+            }
+            
+            .registration-header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .anggota-header-solid {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
-    <!-- HEADER EVENT -->
-    <div class="header-event">
+    <!-- ===== NAVBAR SAMA DENGAN INDEX.PHP ===== -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.php">
+                <img src="https://www.polibatam.ac.id/wp-content/uploads/2022/01/poltek.png"
+                    alt="Politeknik Negeri Batam">
+            </a>
+            <!-- Form Pencarian -->
+            <form class="d-flex search-form" action="search.php" method="GET">
+                <div class="input-group">
+                    <input type="text" 
+                           class="form-control form-control-sm search-input" 
+                           name="q" 
+                           placeholder="Cari berita/event..." 
+                           aria-label="Search"
+                           value="<?php echo isset($_GET['q']) ? htmlspecialchars($_GET['q']) : ''; ?>"
+                           list="searchSuggestions">
+                    <datalist id="searchSuggestions">
+                        <?php foreach ($search_suggestions as $suggestion): ?>
+                            <option value="<?php echo htmlspecialchars($suggestion); ?>">
+                        <?php endforeach; ?>
+                    </datalist>
+                    <button class="btn btn-outline-light btn-sm" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </form>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.php">Beranda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="berita.php">Berita Kampus</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="event.php">Event & Kegiatan</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="admin/login.php">Admin</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== HEADER PENDAFTARAN SOLID ===== -->
+    <div class="registration-header">
         <div class="container">
             <div class="row align-items-center">
                 <div class="col-md-8">
-                    <span class="event-badge">
-                        <i class="fas fa-calendar-alt me-2"></i>
+                    <span class="event-badge-custom">
+                        <i class="<?php echo $event['ikon']; ?> me-2"></i>
                         <?php echo $event['kategori_nama']; ?>
                     </span>
-                    <h1 class="display-5 fw-bold"><?php echo htmlspecialchars($event['judul']); ?></h1>
-                    <p class="lead mb-0">
-                        <i class="fas fa-map-marker-alt me-2"></i>
-                        <?php echo htmlspecialchars($event['lokasi']); ?>
-                        •
-                        <i class="fas fa-clock me-2"></i>
-                        <?php echo date('d F Y', strtotime($event['tanggal'])); ?>
-                    </p>
+                    <h1 class="display-4 fw-bold">Pendaftaran Event</h1>
+                    <h2 class="mb-3"><?php echo htmlspecialchars($event['judul']); ?></h2>
+                    <div class="d-flex flex-wrap gap-3">
+                        <span class="badge bg-white text-primary px-3 py-2">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            <?php echo date('d F Y', strtotime($event['tanggal'])); ?>
+                        </span>
+                        <span class="badge bg-white text-primary px-3 py-2">
+                            <i class="fas fa-map-marker-alt me-2"></i>
+                            <?php echo htmlspecialchars($event['lokasi']); ?>
+                        </span>
+                        <span class="badge bg-white text-primary px-3 py-2">
+                            <i class="fas fa-users me-2"></i>
+                            <?php 
+                            if ($tipe == 'tim') {
+                                echo 'Wajib Tim (' . $min_anggota . '-' . $max_anggota . ' orang)';
+                            } elseif ($tipe == 'individu_tim') {
+                                echo 'Bisa Individu/Tim';
+                            } else {
+                                echo 'Individu';
+                            }
+                            ?>
+                        </span>
+                    </div>
                 </div>
                 <div class="col-md-4 text-md-end">
-                    <a href="detail_event.php?id=<?php echo $event_id; ?>" class="btn btn-light">
+                    <a href="detail_event.php?id=<?php echo $event_id; ?>" class="btn-solid-primary">
                         <i class="fas fa-arrow-left me-2"></i> Kembali ke Detail
                     </a>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="container">
-        <!-- NOTIFIKASI -->
+        <!-- NOTIFIKASI ERROR -->
         <?php if (!empty($errors)): ?>
-            <div class="alert alert-danger alert-custom alert-dismissible fade show" role="alert">
+            <div class="alert alert-custom-solid alert-danger alert-dismissible fade show" role="alert">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
                     <div>
-                        <h5 class="mb-1">Terjadi Kesalahan!</h5>
+                        <h4 class="mb-1">Terjadi Kesalahan!</h4>
                         <ul class="mb-0 ps-3">
                             <?php foreach ($errors as $error): ?>
                                 <li><?php echo htmlspecialchars($error); ?></li>
@@ -690,108 +1015,157 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
-        
-        <!-- INFO BOX -->
-        <div class="info-box">
-            <div class="row">
-                <div class="col-md-8">
-                    <h5><i class="fas fa-info-circle me-2"></i>Informasi Pendaftaran</h5>
-                    <p class="mb-2">
-                        <strong>Status:</strong> 
-                        <?php if ($event_passed): ?>
-                            <span class="badge bg-secondary">Event sudah berlalu</span>
-                        <?php elseif ($is_full): ?>
-                            <span class="badge bg-danger">Kuota penuh</span>
-                        <?php else: ?>
-                            <span class="badge bg-success">Pendaftaran dibuka</span>
+
+        <!-- CEK APAKAH MASIH BISA DAFTAR -->
+        <?php if ($event_passed): ?>
+            <div class="alert alert-custom-solid alert-warning text-center py-5">
+                <i class="fas fa-calendar-times fa-4x mb-3"></i>
+                <h3 class="mb-3">Pendaftaran Ditutup</h3>
+                <p class="mb-0">Maaf, pendaftaran untuk event ini sudah ditutup karena event sudah berlalu.</p>
+                <div class="mt-3">
+                    <a href="event.php" class="btn-solid-primary">
+                        <i class="fas fa-calendar me-2"></i> Cari Event Lainnya
+                    </a>
+                </div>
+            </div>
+        <?php elseif ($is_full): ?>
+            <div class="alert alert-custom-solid alert-danger text-center py-5">
+                <i class="fas fa-users-slash fa-4x mb-3"></i>
+                <h3 class="mb-3">Kuota Penuh</h3>
+                <p class="mb-0">Maaf, kuota pendaftaran untuk event ini sudah penuh.</p>
+                <div class="mt-3">
+                    <a href="event.php" class="btn-solid-primary">
+                        <i class="fas fa-calendar me-2"></i> Cari Event Lainnya
+                    </a>
+                </div>
+            </div>
+        <?php else: ?>
+            <!-- INFO BOX STATUS & KUOTA -->
+            <div class="info-box-solid">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h4 class="mb-3"><i class="fas fa-info-circle me-2"></i> Status Pendaftaran</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="fas fa-calendar-check fa-2x text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Tanggal Event:</strong><br>
+                                        <?php echo date('d F Y', strtotime($event['tanggal'])); ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        <i class="fas fa-users fa-2x text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <strong>Sistem Pendaftaran:</strong><br>
+                                        <?php 
+                                        if ($tipe == 'tim') {
+                                            echo 'Wajib Tim (' . $min_anggota . '-' . $max_anggota . ' orang)';
+                                        } elseif ($tipe == 'individu_tim') {
+                                            echo 'Bisa Individu atau Tim';
+                                        } else {
+                                            echo 'Individu';
+                                        }
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <?php if ($kuota > 0): ?>
+                        <div class="quota-status-solid">
+                            <div>
+                                <strong>Kuota Tersedia:</strong><br>
+                                <h3 class="text-success mb-0"><?php echo $remaining; ?></h3>
+                                <small>dari <?php echo $kuota; ?> kuota</small>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="quota-progress-solid">
+                                    <div class="quota-progress-bar-solid" 
+                                         style="width: <?php echo min(100, ($registered_count/$kuota)*100); ?>%"></div>
+                                </div>
+                                <div class="d-flex justify-content-between mt-2">
+                                    <small>Terdaftar: <?php echo $registered_count; ?></small>
+                                    <small>Tersisa: <?php echo $remaining; ?></small>
+                                </div>
+                            </div>
+                        </div>
                         <?php endif; ?>
-                    </p>
+                    </div>
                     
-                    <?php if ($kuota > 0): ?>
-                    <div class="quota-status">
-                        <span><strong>Kuota:</strong> <?php echo $remaining ?? $kuota; ?> tersisa dari <?php echo $kuota; ?></span>
-                        <div class="progress">
-                            <div class="progress-bar bg-success" 
-                                 style="width: <?php echo min(100, ($registered_count/$kuota)*100); ?>%"></div>
+                    <?php if ($berbayar): ?>
+                    <div class="col-md-4">
+                        <div class="payment-box-solid">
+                            <h4 class="mb-3"><i class="fas fa-money-bill-wave me-2"></i> Biaya Pendaftaran</h4>
+                            <h1 class="text-warning mb-3">Rp <?php echo number_format($biaya, 0, ',', '.'); ?></h1>
+                            <p class="mb-2">
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                                <?php echo $tipe == 'tim' ? 'Per Tim' : 'Per Orang'; ?>
+                            </p>
+                            <p class="mb-0">
+                                <i class="fas fa-clock text-info me-2"></i>
+                                Verifikasi maksimal 1x24 jam
+                            </p>
                         </div>
                     </div>
                     <?php endif; ?>
                 </div>
-                
-                <?php if ($berbayar): ?>
-                <div class="col-md-4">
-                    <div class="fee-box">
-                        <h5><i class="fas fa-money-bill-wave me-2"></i>Biaya Pendaftaran</h5>
-                        <h3 class="text-warning mb-0">Rp <?php echo number_format($biaya, 0, ',', '.'); ?></h3>
-                        <small class="text-muted"><?php echo $tipe == 'tim' ? 'per tim' : 'per orang'; ?></small>
-                    </div>
-                </div>
-                <?php endif; ?>
             </div>
-        </div>
-        
-        <!-- CEK APAKAH MASIH BISA DAFTAR -->
-        <?php if ($event_passed): ?>
-            <div class="alert alert-warning text-center py-4">
-                <i class="fas fa-calendar-times fa-3x mb-3"></i>
-                <h4>Pendaftaran Ditutup</h4>
-                <p class="mb-0">Maaf, pendaftaran untuk event ini sudah ditutup karena event sudah berlalu.</p>
-            </div>
-        <?php elseif ($is_full): ?>
-            <div class="alert alert-danger text-center py-4">
-                <i class="fas fa-users-slash fa-3x mb-3"></i>
-                <h4>Kuota Penuh</h4>
-                <p class="mb-0">Maaf, kuota pendaftaran untuk event ini sudah penuh.</p>
-            </div>
-        <?php else: ?>
+
             <!-- FORM CONTAINER -->
-            <div class="form-container">
+            <div class="form-container-solid">
                 <form method="POST" id="pendaftaranForm" enctype="multipart/form-data">
                     
-                    <!-- PILIH TIPE PENDAFTARAN -->
+                    <!-- PILIH TIPE PENDAFTARAN (Hanya untuk individu_tim) -->
                     <?php if ($tipe == 'individu_tim'): ?>
-                    <div class="form-section">
-                        <h4 class="section-title">
-                            <i class="fas fa-users"></i> Tipe Pendaftaran
+                    <div class="form-section-solid">
+                        <h4 class="section-title-solid">
+                            <i class="fas fa-users"></i> Pilih Tipe Pendaftaran
                         </h4>
                         
-                        <div class="tipe-selection">
-                            <div class="tipe-card <?php echo (isset($_POST['tipe_daftar']) && $_POST['tipe_daftar'] == 'individu') ? 'active' : ''; ?>" 
+                        <div class="tipe-selection-solid">
+                            <div class="tipe-card-solid <?php echo (isset($_POST['tipe_daftar']) && $_POST['tipe_daftar'] == 'individu') ? 'active' : ''; ?>" 
                                  data-tipe="individu" onclick="selectTipe('individu')">
-                                <div class="tipe-icon">
+                                <div class="tipe-icon-solid">
                                     <i class="fas fa-user"></i>
                                 </div>
-                                <h4>Individu</h4>
-                                <p class="text-muted">Daftar sendiri tanpa tim</p>
-                                <div class="form-check">
+                                <h4 class="mb-2">Individu</h4>
+                                <p class="text-muted mb-3">Daftar sendiri tanpa tim</p>
+                                <div class="form-check d-flex justify-content-center">
                                     <input class="form-check-input" type="radio" name="tipe_daftar" 
                                            value="individu" id="tipeIndividu" 
                                            <?php echo ($_POST['tipe_daftar'] ?? 'individu') == 'individu' ? 'checked' : ''; ?>>
-                                    <label class="form-check-label" for="tipeIndividu">
+                                    <label class="form-check-label ms-2" for="tipeIndividu">
                                         Pilih Individu
                                     </label>
                                 </div>
                             </div>
                             
-                            <div class="tipe-card <?php echo ($_POST['tipe_daftar'] ?? '') == 'tim' ? 'active' : ''; ?>" 
+                            <div class="tipe-card-solid <?php echo ($_POST['tipe_daftar'] ?? '') == 'tim' ? 'active' : ''; ?>" 
                                  data-tipe="tim" onclick="selectTipe('tim')">
-                                <div class="tipe-icon">
+                                <div class="tipe-icon-solid">
                                     <i class="fas fa-users"></i>
                                 </div>
-                                <h4>Tim</h4>
-                                <p class="text-muted">Daftar sebagai tim</p>
-                                <div class="form-check">
+                                <h4 class="mb-2">Tim</h4>
+                                <p class="text-muted mb-3">Daftar sebagai tim</p>
+                                <div class="form-check d-flex justify-content-center">
                                     <input class="form-check-input" type="radio" name="tipe_daftar" 
                                            value="tim" id="tipeTim" 
                                            <?php echo ($_POST['tipe_daftar'] ?? '') == 'tim' ? 'checked' : ''; ?>>
-                                    <label class="form-check-label" for="tipeTim">
+                                    <label class="form-check-label ms-2" for="tipeTim">
                                         Pilih Tim
                                     </label>
                                 </div>
                             </div>
                         </div>
                         
-                        <div class="info-box" id="tipeInfo">
+                        <div class="info-box-solid mt-3" id="tipeInfo">
                             <i class="fas fa-lightbulb me-2"></i>
                             <span id="tipeInfoText">
                                 <?php if (($tipe == 'individu') || ($_POST['tipe_daftar'] ?? 'individu') == 'individu'): ?>
@@ -807,29 +1181,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     <?php endif; ?>
                     
                     <!-- NAMA TIM (Hanya untuk tim) -->
-                    <div class="form-section" id="timSection" style="<?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? '' : 'display: none;'; ?>">
-                        <h4 class="section-title">
-                            <i class="fas fa-flag"></i> Data Tim
+                    <div class="form-section-solid" id="timSection" style="<?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? '' : 'display: none;'; ?>">
+                        <h4 class="section-title-solid">
+                            <i class="fas fa-flag"></i> Informasi Tim
                         </h4>
                         
                         <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Nama Tim <span class="text-danger">*</span></label>
-                                    <input type="text" name="nama_tim" class="form-control" 
+                            <div class="col-md-8">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Nama Tim <span class="text-danger">*</span></label>
+                                    <input type="text" name="nama_tim" class="form-control form-control-lg" 
                                            value="<?php echo isset($_POST['nama_tim']) ? htmlspecialchars($_POST['nama_tim']) : ''; ?>" 
-                                           placeholder="Contoh: Tim Jaya Makmur" required>
+                                           placeholder="Contoh: Tim Juara Kampus 2025" required>
+                                    <div class="form-text">Nama tim akan muncul di sertifikat dan pengumuman</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">Jumlah Anggota <span class="text-danger">*</span></label>
-                                    <select name="jumlah_anggota" class="form-select" id="jumlahAnggota" required>
-                                        <option value="">Pilih jumlah anggota</option>
+                            <div class="col-md-4">
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Jumlah Anggota <span class="text-danger">*</span></label>
+                                    <select name="jumlah_anggota" class="form-select form-select-lg" id="jumlahAnggota" required>
+                                        <option value="">Pilih jumlah</option>
                                         <?php for ($i = $min_anggota; $i <= $max_anggota; $i++): ?>
                                         <option value="<?php echo $i; ?>" 
                                             <?php echo ($_POST['jumlah_anggota'] ?? $min_anggota) == $i ? 'selected' : ''; ?>>
-                                            <?php echo $i; ?> orang
+                                            <?php echo $i; ?> Orang
                                         </option>
                                         <?php endfor; ?>
                                     </select>
@@ -842,11 +1217,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                     
                     <!-- DATA ANGGOTA -->
-                    <div class="form-section">
-                        <h4 class="section-title">
+                    <div class="form-section-solid">
+                        <h4 class="section-title-solid">
                             <i class="fas fa-user-friends"></i> 
                             <span id="anggotaTitle">
-                                <?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? 'Data Anggota Tim' : 'Data Diri'; ?>
+                                <?php echo ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim') ? 'Data Anggota Tim' : 'Data Diri Peserta'; ?>
                             </span>
                         </h4>
                         
@@ -858,12 +1233,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                             
                             for ($i = 0; $i < $current_members; $i++):
                             ?>
-                            <div class="anggota-card" data-index="<?php echo $i; ?>">
+                            <div class="anggota-card-solid" data-index="<?php echo $i; ?>">
+                                <div class="anggota-counter-solid"><?php echo $i + 1; ?></div>
+                                
                                 <?php if ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim'): ?>
-                                <div class="anggota-header">
-                                    <span class="anggota-label">Anggota <?php echo $i + 1; ?></span>
+                                <div class="anggota-header-solid">
+                                    <span class="anggota-label-solid">Anggota <?php echo $i + 1; ?></span>
                                     <?php if ($i == 0): ?>
-                                        <span class="badge-ketua">Ketua Tim</span>
+                                        <span class="badge-ketua-solid">KETUA TIM</span>
                                     <?php endif; ?>
                                 </div>
                                 <?php endif; ?>
@@ -871,16 +1248,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">Nama Lengkap <span class="text-danger">*</span></label>
                                             <input type="text" name="nama[]" class="form-control" 
-                                                   value="<?php echo $_POST['nama'][$i] ?? ''; ?>" required>
+                                                   value="<?php echo $_POST['nama'][$i] ?? ''; ?>" 
+                                                   placeholder="Nama sesuai KTP/Identitas" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">NIM<span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">NPM <span class="text-danger">*</span></label>
                                             <input type="text" name="npm[]" class="form-control" 
-                                                   value="<?php echo $_POST['npm'][$i] ?? ''; ?>" required>
+                                                   value="<?php echo $_POST['npm'][$i] ?? ''; ?>" 
+                                                   placeholder="Contoh: 12345678" required>
                                         </div>
                                     </div>
                                 </div>
@@ -888,16 +1267,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="row">
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Email <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
                                             <input type="email" name="email[]" class="form-control" 
-                                                   value="<?php echo $_POST['email'][$i] ?? ''; ?>" required>
+                                                   value="<?php echo $_POST['email'][$i] ?? ''; ?>" 
+                                                   placeholder="email@contoh.com" required>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">No. WhatsApp <span class="text-danger">*</span></label>
+                                            <label class="form-label fw-bold">No. WhatsApp <span class="text-danger">*</span></label>
                                             <input type="tel" name="wa[]" class="form-control" 
-                                                   value="<?php echo $_POST['wa'][$i] ?? ''; ?>" required>
+                                                   value="<?php echo $_POST['wa'][$i] ?? ''; ?>" 
+                                                   placeholder="081234567890" required>
+                                            <div class="form-text">Pastikan nomor aktif untuk konfirmasi</div>
                                         </div>
                                     </div>
                                 </div>
@@ -905,7 +1287,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                                 <div class="row">
                                     <div class="col-md-12">
                                         <div class="mb-3">
-                                            <label class="form-label">Jurusan/Fakultas</label>
+                                            <label class="form-label fw-bold">Jurusan/Fakultas</label>
                                             <input type="text" name="jurusan[]" class="form-control" 
                                                    value="<?php echo $_POST['jurusan'][$i] ?? ''; ?>" 
                                                    placeholder="Contoh: Teknik Informatika">
@@ -917,12 +1299,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         </div>
                         
                         <?php if ($tipe == 'tim' || ($_POST['tipe_daftar'] ?? '') == 'tim'): ?>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-add" id="tambahAnggota">
-                                <i class="fas fa-plus me-2"></i>Tambah Anggota
+                        <div class="d-flex gap-3 mt-4">
+                            <button type="button" class="btn-solid-success" id="tambahAnggota">
+                                <i class="fas fa-plus-circle me-2"></i>Tambah Anggota
                             </button>
-                            <button type="button" class="btn btn-remove" id="hapusAnggota">
-                                <i class="fas fa-minus me-2"></i>Hapus Anggota
+                            <button type="button" class="btn-solid-danger" id="hapusAnggota">
+                                <i class="fas fa-minus-circle me-2"></i>Hapus Anggota
                             </button>
                         </div>
                         <?php endif; ?>
@@ -930,128 +1312,170 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     
                     <!-- BUKTI PEMBAYARAN (Hanya untuk event berbayar) -->
                     <?php if ($berbayar): ?>
-                    <div class="form-section">
-                        <h4 class="section-title">
-                            <i class="fas fa-file-invoice-dollar"></i> Bukti Pembayaran
+                    <div class="form-section-solid">
+                        <h4 class="section-title-solid">
+                            <i class="fas fa-file-invoice-dollar"></i> Pembayaran & Verifikasi
                         </h4>
                         
                         <!-- INFO REKENING -->
-                        <div class="info-rekening">
-                            <h5><i class="fas fa-university me-2"></i>Transfer ke Rekening Berikut:</h5>
+                        <div class="warning-box-solid">
+                            <h5 class="mb-3"><i class="fas fa-university me-2"></i>Transfer ke Rekening Resmi:</h5>
                             
-                            <div class="rekening-item">
-                                <div>
-                                    <strong>Bank Maybank</strong>
-                                    <div class="text-muted">Kantor Cabang Utama</div>
-                                </div>
-                                <div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="rekening-number">8787933492</span>
-                                        <button type="button" class="copy-btn" data-number="8787933492">
-                                            <i class="fas fa-copy"></i>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="rekening-box-solid">
+                                        <div class="rekening-item-solid">
+                                            <div>
+                                                <strong>Bank Maybank</strong><br>
+                                                <small class="text-muted">Kantor Cabang Utama</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <h5 class="mb-1">8787933492</h5>
+                                                <small class="text-muted">Amadeo Duscha R</small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="copy-btn-solid w-100 mt-2" data-number="8787933492">
+                                            <i class="fas fa-copy me-2"></i>Salin No. Rekening
                                         </button>
                                     </div>
-                                    <div class="text-muted">Amadeo Duscha R</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="rekening-box-solid">
+                                        <div class="rekening-item-solid">
+                                            <div>
+                                                <strong>Bank BCA</strong><br>
+                                                <small class="text-muted">Kantor Cabang Utama</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <h5 class="mb-1">8211049634</h5>
+                                                <small class="text-muted">Reyvandito Bassam C</small>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="copy-btn-solid w-100 mt-2" data-number="8211049634">
+                                            <i class="fas fa-copy me-2"></i>Salin No. Rekening
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             
-                            <div class="rekening-item">
-                                <div>
-                                    <strong>Bank BCA</strong>
-                                    <div class="text-muted">Kantor Cabang Utama</div>
-                                </div>
-                                <div>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="rekening-number">8211049634</span>
-                                        <button type="button" class="copy-btn" data-number="8211049634">
-                                            <i class="fas fa-copy"></i>
-                                        </button>
-                                    </div>
-                                    <div class="text-muted">Reyvandito Bassam C</div>
-                                </div>
-                            </div>
-                            
-                            <div class="payment-instruction">
+                            <div class="success-box-solid mt-3">
                                 <h6><i class="fas fa-lightbulb me-2"></i>Petunjuk Pembayaran:</h6>
                                 <ol class="mb-0">
-                                    <li>Transfer sesuai nominal: <strong>Rp <?php echo number_format($biaya, 0, ',', '.'); ?></strong></li>
+                                    <li>Transfer sesuai nominal: <strong class="text-warning">Rp <?php echo number_format($biaya, 0, ',', '.'); ?></strong></li>
                                     <li>Tambah angka unik: <strong><?php echo rand(1, 999); ?></strong> untuk memudahkan verifikasi</li>
                                     <li>Upload bukti transfer dengan format JPG, PNG, atau PDF (maks. 5MB)</li>
-                                    <li>Pastikan bukti transfer terbaca dengan jelas</li>
+                                    <li>Pastikan bukti transfer terbaca dengan jelas (nama pengirim, nominal, waktu)</li>
                                 </ol>
                             </div>
                         </div>
                         
                         <!-- UPLOAD AREA -->
-                        <div class="upload-area" id="uploadArea">
-                            <div class="upload-icon">
+                        <div class="upload-area-solid" id="uploadArea">
+                            <div class="upload-icon-solid">
                                 <i class="fas fa-cloud-upload-alt"></i>
                             </div>
-                            <h5>Upload Bukti Pembayaran</h5>
-                            <p class="text-muted">Drag & drop file atau klik untuk memilih</p>
-                            <p class="text-muted mb-3">Format: JPG, PNG, PDF | Maks: 5MB</p>
+                            <h4 class="mb-2">Upload Bukti Pembayaran</h4>
+                            <p class="text-muted mb-4">Drag & drop file atau klik untuk memilih</p>
+                            <p class="text-muted mb-4">Format: JPG, PNG, PDF | Maks: 5MB</p>
                             
                             <input type="file" name="bukti_pembayaran" id="buktiPembayaran" 
                                    accept=".jpg,.jpeg,.png,.gif,.pdf" hidden required>
                             
-                            <button type="button" class="btn btn-primary" onclick="document.getElementById('buktiPembayaran').click()">
+                            <button type="button" class="btn-solid-primary" onclick="document.getElementById('buktiPembayaran').click()">
                                 <i class="fas fa-folder-open me-2"></i>Pilih File
                             </button>
                         </div>
                         
                         <!-- PREVIEW -->
-                        <div class="preview-container" id="previewContainer" style="display: none;">
-                            <button type="button" class="btn-remove-file" id="removeFile">
+                        <div class="preview-container-solid" id="previewContainer" style="display: none;">
+                            <button type="button" class="btn-remove-file-solid" id="removeFile">
                                 <i class="fas fa-times"></i>
                             </button>
-                            <img src="" alt="Preview" class="preview-image" id="previewImage">
-                            <div id="fileInfo" class="file-info mt-2"></div>
+                            <img src="" alt="Preview" class="preview-image-solid" id="previewImage">
+                            <div id="fileInfo" class="file-info mt-3"></div>
                         </div>
                         
-                        <!-- FILE INFO -->
-                        <div class="alert alert-info mt-3">
+                        <!-- INSTRUCTION -->
+                        <div class="info-box-solid mt-4">
                             <i class="fas fa-info-circle me-2"></i>
                             <strong>Penting:</strong> Pendaftaran Anda akan diproses setelah bukti pembayaran diverifikasi oleh panitia. 
-                            Proses verifikasi maksimal 1x24 jam.
+                            Proses verifikasi maksimal 1x24 jam. Kode pendaftaran akan dikirim via WhatsApp dan Email setelah verifikasi berhasil.
                         </div>
                     </div>
                     <?php endif; ?>
                     
-                    <!-- KONFIRMASI -->
-                    <div class="form-section">
-                        <h4 class="section-title">
-                            <i class="fas fa-check-circle"></i> Konfirmasi
+                    <!-- KONFIRMASI & SUBMIT -->
+                    <div class="form-section-solid" style="border-bottom: none;">
+                        <h4 class="section-title-solid">
+                            <i class="fas fa-check-circle"></i> Konfirmasi Akhir
                         </h4>
                         
-                        <div class="form-check mb-4">
-                            <input class="form-check-input" type="checkbox" id="agreeTerms" required>
-                            <label class="form-check-label" for="agreeTerms">
-                                Saya menyetujui syarat dan ketentuan yang berlaku. Data yang saya berikan adalah benar dan dapat dipertanggungjawabkan.
-                            </label>
+                        <div class="warning-box-solid mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                                <label class="form-check-label fw-bold" for="agreeTerms">
+                                    <i class="fas fa-check-square me-2"></i>
+                                    Saya menyetujui syarat dan ketentuan yang berlaku. Data yang saya berikan adalah benar dan dapat dipertanggungjawabkan.
+                                </label>
+                            </div>
                         </div>
                         
                         <div class="text-center">
-                            <button type="submit" class="btn btn-submit">
+                            <button type="submit" class="btn-solid-primary" style="font-size: 1.2rem; padding: 15px 50px;">
                                 <i class="fas fa-paper-plane me-2"></i>
-                                <?php echo $tipe == 'tim' ? 'Daftarkan Tim' : 'Daftar Sekarang'; ?>
+                                <?php echo $tipe == 'tim' ? 'DAFTARKAN TIM' : 'DAFTAR SEKARANG'; ?>
                             </button>
                         </div>
                     </div>
                 </form>
             </div>
         <?php endif; ?>
-        
-        <!-- FOOTER -->
-        <footer class="text-center text-muted mt-5">
-            <hr>
-            <p class="mb-0">
-                &copy; <?php echo date('Y'); ?> Sistem Pendaftaran Event Kampus
-                | <a href="detail_event.php?id=<?php echo $event_id; ?>" class="text-decoration-none">Kembali ke Detail Event</a>
-            </p>
-        </footer>
     </div>
-    
-    <!-- SCRIPTS -->
+
+    <!-- ===== FOOTER SAMA DENGAN INDEX.PHP ===== -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <h5>Politeknik Negeri Batam</h5>
+                    <p>Jl. Ahmad Yani, Batam Kota, Batam 29461</p>
+                    <p>Kepulauan Riau, Indonesia</p>
+                    <p>Telp: (0778) 469856</p>
+                    <p>Email: info@polibatam.ac.id</p>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Tautan Cepat</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="index.php">Beranda</a></li>
+                        <li><a href="berita.php">Berita Kampus</a></li>
+                        <li><a href="event.php">Event & Kegiatan</a></li>
+                        <li><a href="admin/login.php">Panel Admin</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <h5>Ikuti Kami</h5>
+                    <div class="social-icons">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-youtube"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p>&copy; 2025 Portal Informasi Kampus - Politeknik Negeri Batam</p>
+                <small>
+                    Halaman Pendaftaran Event | 
+                    Event: <?php echo htmlspecialchars($event['judul']); ?> |
+                    <?php echo date('d/m/Y H:i:s'); ?>
+                </small>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS (sama seperti sebelumnya) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
     
@@ -1065,9 +1489,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // VARIABLES
         let currentAnggotaCount = <?php echo $current_members ?? 1; ?>;
         
-        // FUNGSI SELECT TIPE (hanya untuk individu_tim)
+        // FUNGSI SELECT TIPE
         function selectTipe(tipe) {
-            document.querySelectorAll('.tipe-card').forEach(card => {
+            document.querySelectorAll('.tipe-card-solid').forEach(card => {
                 card.classList.remove('active');
             });
             
@@ -1082,7 +1506,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             if (tipe === 'individu') {
                 infoText.textContent = 'Anda akan mendaftar sebagai individu.';
                 timSection.style.display = 'none';
-                anggotaTitle.textContent = 'Data Diri';
+                anggotaTitle.textContent = 'Data Diri Peserta';
                 currentAnggotaCount = 1;
                 updateAnggotaCards();
             } else {
@@ -1110,25 +1534,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             for (let i = 0; i < currentAnggotaCount; i++) {
                 const isKetua = i === 0;
                 const anggotaHTML = `
-                    <div class="anggota-card" data-index="${i}">
+                    <div class="anggota-card-solid" data-index="${i}">
+                        <div class="anggota-counter-solid">${i + 1}</div>
+                        
                         ${tipeEvent === 'tim' || document.querySelector('input[name="tipe_daftar"]:checked')?.value === 'tim' ? `
-                        <div class="anggota-header">
-                            <span class="anggota-label">Anggota ${i + 1}</span>
-                            ${isKetua ? '<span class="badge-ketua">Ketua Tim</span>' : ''}
+                        <div class="anggota-header-solid">
+                            <span class="anggota-label-solid">Anggota ${i + 1}</span>
+                            ${isKetua ? '<span class="badge-ketua-solid">KETUA TIM</span>' : ''}
                         </div>
                         ` : ''}
                         
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
-                                    <input type="text" name="nama[]" class="form-control" required>
+                                    <label class="form-label fw-bold">Nama Lengkap <span class="text-danger">*</span></label>
+                                    <input type="text" name="nama[]" class="form-control" 
+                                           placeholder="Nama sesuai KTP/Identitas" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">NPM <span class="text-danger">*</span></label>
-                                    <input type="text" name="npm[]" class="form-control" required>
+                                    <label class="form-label fw-bold">NPM <span class="text-danger">*</span></label>
+                                    <input type="text" name="npm[]" class="form-control" 
+                                           placeholder="Contoh: 12345678" required>
                                 </div>
                             </div>
                         </div>
@@ -1136,14 +1564,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">Email <span class="text-danger">*</span></label>
-                                    <input type="email" name="email[]" class="form-control" required>
+                                    <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+                                    <input type="email" name="email[]" class="form-control" 
+                                           placeholder="email@contoh.com" required>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">No. WhatsApp <span class="text-danger">*</span></label>
-                                    <input type="tel" name="wa[]" class="form-control" required>
+                                    <label class="form-label fw-bold">No. WhatsApp <span class="text-danger">*</span></label>
+                                    <input type="tel" name="wa[]" class="form-control" 
+                                           placeholder="081234567890" required>
+                                    <div class="form-text">Pastikan nomor aktif untuk konfirmasi</div>
                                 </div>
                             </div>
                         </div>
@@ -1151,8 +1582,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="mb-3">
-                                    <label class="form-label">Jurusan/Fakultas</label>
-                                    <input type="text" name="jurusan[]" class="form-control" placeholder="Contoh: Teknik Informatika">
+                                    <label class="form-label fw-bold">Jurusan/Fakultas</label>
+                                    <input type="text" name="jurusan[]" class="form-control" 
+                                           placeholder="Contoh: Teknik Informatika">
                                 </div>
                             </div>
                         </div>
@@ -1192,7 +1624,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             }
         });
         
-        // UPLOAD BUKTI PEMBAYARAN
+        // UPLOAD BUKTI PEMBAYARAN (sama seperti sebelumnya)
         const uploadArea = document.getElementById('uploadArea');
         const buktiPembayaran = document.getElementById('buktiPembayaran');
         const previewContainer = document.getElementById('previewContainer');
@@ -1299,12 +1731,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
         
         // COPY REKENING NUMBER
-        document.querySelectorAll('.copy-btn').forEach(button => {
+        document.querySelectorAll('.copy-btn-solid').forEach(button => {
             button.addEventListener('click', function() {
                 const number = this.getAttribute('data-number');
                 navigator.clipboard.writeText(number).then(() => {
                     const originalText = this.innerHTML;
-                    this.innerHTML = '<i class="fas fa-check"></i>';
+                    this.innerHTML = '<i class="fas fa-check"></i> Tersalin!';
                     this.style.background = '#28a745';
                     
                     setTimeout(() => {
@@ -1380,7 +1812,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if (buktiFile && !buktiFile.files[0]) {
                     e.preventDefault();
                     alert('Harap upload bukti pembayaran terlebih dahulu!');
-                    uploadArea.style.borderColor = 'var(--danger)';
+                    uploadArea.style.borderColor = 'var(--danger-color)';
                     uploadArea.scrollIntoView({ behavior: 'smooth' });
                     return false;
                 }
