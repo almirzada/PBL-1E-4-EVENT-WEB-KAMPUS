@@ -11,7 +11,7 @@ require_once '../koneksi.php';
 
 // ================================================
 // AMBIL DATA ADMIN YANG SEDANG LOGIN
-// ================================================
+
 $admin_id = $_SESSION['admin_event_id'];
 $admin_data = mysqli_query($conn, "SELECT * FROM admin_event WHERE id = $admin_id");
 $admin = mysqli_fetch_assoc($admin_data);
@@ -20,9 +20,9 @@ $username = $admin['username'] ?? 'admin';
 $nama_lengkap = $admin['nama'] ?? 'Administrator';
 $level = $admin['level'] ?? 'admin';
 
-// ================================================
+
 // HITUNG STATISTIK EVENT DARI DATABASE
-// ================================================
+
 // Total Event
 $total_event = mysqli_fetch_assoc(mysqli_query($conn, 
     "SELECT COUNT(*) as total FROM events"))['total'] ?? 0;

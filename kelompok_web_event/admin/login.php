@@ -8,7 +8,7 @@ echo " -->";
 
 require_once '../koneksi.php';
 
-// Jika sudah login, redirect ke dashboard
+// kalau sudah login, redirect ke dashboard
 if (isset($_SESSION['admin_event_id'])) {
     echo "<!-- Redirect ke dashboard -->";
     header('Location: dashboard.php');

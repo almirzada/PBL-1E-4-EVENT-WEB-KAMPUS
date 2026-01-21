@@ -1185,7 +1185,7 @@ $event_dates_json = json_encode($event_dates);
         <div class="slider-container">
             <div class="slider-track">
                 <?php 
-                // Array gambar dari URL eksternal
+                
                 $gallery_images = [
                     'https://cdn.antaranews.com/cache/1200x800/2023/09/01/IMG_6557.jpeg',
                     'https://www.polibatam.ac.id/wp-content/uploads/2023/04/IMG_2431-scaled.jpg',

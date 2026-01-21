@@ -1,5 +1,4 @@
 <?php
-// koneksi.php - VERSI DEBUG
 $host = "localhost";
 $user = "root";
 $pass = "";
