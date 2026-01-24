@@ -1,0 +1,57 @@
+
+
+═══════════════════════════════════════════════
+⚡ QUICK START - EVENT KAMPUS WEBSITE
+═══════════════════════════════════════════════
+
+1️⃣ INSTALL XAMPP/Laragon
+   Install dengan semua default setting
+
+2️⃣ JALANKAN 
+   - Start Apache
+   - Start MySQL
+
+3️⃣ COPY FOLDER
+   Copy folder ini ke:
+   📁 C:\xampp\htdocs\event-kampus\ (Jika pakai XAMPP)
+   📁 C:\laragon\wwww\event-kampus\ (Jika pakai Laragon)
+
+4️⃣ BUAT DATABASE
+   - Buka: http://localhost/phpmyadmin
+   - Klik "New"
+   - Nama database: event_kampus
+   - Klik "Create"
+
+5️⃣ IMPORT SQL
+   - Pilih database event_kampus
+   - Tab "Import" → Choose File
+   - Pilih: sql/01_structure.sql
+   - Klik "Go"
+
+6️⃣ KONFIGURASI
+   - Copy: koneksi.php.example → koneksi.php
+   - Edit koneksi.php, pastikan:
+        $user = "root";
+        $pass = "";
+
+7️⃣ BUAT FOLDER UPLOADS
+   Di folder event-kampus, buat:
+   📁 uploads/
+      📁 events/
+      📁 berita/
+      📁 bukti_pembayaran/
+
+8️⃣ AKSES WEBSITE
+   🌐 Buka: http://localhost/event-kampus/
+
+9️⃣ LOGIN ADMIN
+   URL: http://localhost/event-kampus/admin/
+   User: superadmin
+   Pass: password123
+
+═══════════════════════════════════════════════
+💡 TIPS:
+• Pastikan XAMPP Apache & MySQL RUNNING
+• Database name HARUS: event_kampus
+• Password XAMPP default: kosong ("")
+═══════════════════════════════════════════════

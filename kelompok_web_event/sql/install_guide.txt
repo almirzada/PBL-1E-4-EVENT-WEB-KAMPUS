@@ -1,0 +1,36 @@
+📊 DATABASE SETUP GUIDE
+
+1. BUAT DATABASE
+   Nama database HARUS: event_kampus
+
+2. IMPORT FILE SQL:
+   a. 01_structure.sql    → WAJIB (struktur tabel)
+   b. 02_sample_data.sql  → OPSIONAL (data contoh)
+
+3. CARA IMPORT:
+   - Buka phpMyAdmin
+   - Pilih database event_kampus
+   - Klik tab "Import"
+   - Pilih file SQL
+   - Scroll bawah, klik "Go"
+
+4. TABLE YANG AKAN DIBUAT:
+   • events      → Data event
+   • peserta     → Pendaftar individu  
+   • tim_event   → Pendaftar tim
+   • admin       → Akun administrator
+   • kategori    → Kategori event
+   • berita      → Berita kampus
+   • settings    → Pengaturan sistem
+
+5. DEFAULT ACCOUNTS:
+   Username    | Password    | Role
+   ------------|-------------|-----------
+   superadmin  | password123 | Super Admin
+   admin       | password123 | Admin
+   panitia     | password123 | Panitia
+
+6. RESET DATABASE:
+   DROP DATABASE event_kampus;
+   CREATE DATABASE event_kampus;
+   -- Import 01_structure.sql lagi
