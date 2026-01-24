@@ -1,0 +1,39 @@
+# PBL-1E-4-EVENT-WEB-KAMPUS/.gitignore
+# ============================================
+
+# 1. FILE SENSITIF UTAMA
+kelompok_web_event/koneksi.php
+kelompok_web_event/config.php
+kelompok_web_event/.env*
+
+# 2. UPLOADS FOLDER
+kelompok_web_event/uploads/
+kelompok_web_event/assets/uploads/
+
+# 3. LOGS & TEMP FILES
+kelompok_web_event/*.log
+kelompok_web_event/logs/
+kelompok_web_event/tmp/
+kelompok_web_event/temp/
+
+# 4. BACKUP FILES (kecuali yang di sql/)
+*.sql
+*.backup
+*.zip
+!kelompok_web_event/sql/*.sql  # KECUALI: allow SQL di folder sql/
+
+# 5. SYSTEM FILES
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+
+# 6. IDE FILES
+.idea/
+.vscode/
+.vs/
+
+# 7. DEPENDENCIES
+kelompok_web_event/vendor/
+kelompok_web_event/node_modules/

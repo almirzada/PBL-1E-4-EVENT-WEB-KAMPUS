@@ -1,0 +1,80 @@
+<?php
+// koneksi.php.example
+// ============================================
+// FILE INI UNTUK PUBLIC VIEWING DI GITHUB
+// UNTUK VERSI ASLI, BUAT FILE koneksi.php
+// ============================================
+
+/**
+ * Cara Pakai:
+ * 1. Copy file ini menjadi 'koneksi.php'
+ * 2. Edit setting database sesuai lokal
+ * 3. File koneksi.php jangan di-commit ke repo!
+ */
+
+// ===== KONFIGURASI DATABASE =====
+$host = "localhost";     // Server database
+$user = "root";          // Username database
+$pass = "";              // Password database (isi sesuai setting lokal)
+$db   = "event_kampus";  // Nama database
+
+// ===== KONEKSI KE DATABASE =====
+$conn = mysqli_connect($host, $user, $pass, $db);
+
+// ===== ERROR HANDLING =====
+if (!$conn) {
+    // Mode development: tampilkan error detail
+    if ($_SERVER['SERVER_NAME'] == 'localhost' || $_SERVER['SERVER_NAME'] == '127.0.0.1') {
+        die("<h3>⚠️ DATABASE CONNECTION ERROR</h3>
+            <strong>Error:</strong> " . mysqli_connect_error() . "<br>
+            <strong>Host:</strong> $host<br>
+            <strong>Database:</strong> $db<br><br>
+            <strong>Troubleshooting:</strong><br>
+            1. Pastikan MySQL/XAMPP running<br>
+            2. Pastikan database '$db' sudah dibuat<br>
+            3. Cek username/password database");
+    } 
+    // Mode production: tampilkan error umum
+    else {
+        die("Maaf, sistem sedang dalam perbaikan. Silakan coba lagi nanti.");
+    }
+}
+
+// ===== SET CHARACTER SET =====
+mysqli_set_charset($conn, "utf8mb4");
+
+// ===== FUNGSI HELPER =====
+function escape($conn, $data) {
+    return mysqli_real_escape_string($conn, $data);
+}
+
+function query($conn, $sql) {
+    $result = mysqli_query($conn, $sql);
+    if (!$result) {
+        die("Query error: " . mysqli_error($conn) . "<br>SQL: " . $sql);
+    }
+    return $result;
+}
+
+// ===== DEBUG MODE =====
+// Set ke false untuk production
+define('DEBUG_MODE', true);
+
+if (DEBUG_MODE) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+} else {
+    error_reporting(0);
+    ini_set('display_errors', 0);
+}
+
+// ===== TEST KONEKSI (Opsional) =====
+/*
+// Uncomment untuk test koneksi
+$test = mysqli_query($conn, "SELECT 1");
+if (!$test) {
+    die("Database test failed: " . mysqli_error($conn));
+}
+echo "<!-- Database connection OK -->";
+*/
+?>
